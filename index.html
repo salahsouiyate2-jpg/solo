@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SOLO</title>
+    <link rel="icon" type="image/png" href="./solo-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Primary navigation">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <img src="./solo-logo.png" alt="" />
+          </div>
+          <div class="brand-copy">
+            <span class="brand-name">SOLO</span>
+            <span class="brand-meta">Growth OS</span>
+          </div>
+        </div>
+
+        <nav class="nav-list" id="nav-list"></nav>
+
+        <div class="business-card">
+          <div class="business-card__top">
+            <div class="business-avatar" aria-hidden="true">
+              <img src="./solo-logo.png" alt="" />
+            </div>
+            <div class="business-copy">
+              <span>Solo Pizzeria</span>
+              <small>Premium Italian · Casablanca</small>
+            </div>
+          </div>
+          <div class="business-card__metric">
+            <span>Business Pulse</span>
+            <strong>Momentum ↑</strong>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">
+              <span class="eyebrow-mark" aria-hidden="true">
+                <img src="./solo-logo.png" alt="" />
+              </span>
+              SOLO Workspace
+            </p>
+            <h1 id="page-title">Today</h1>
+          </div>
+          <div class="topbar-actions" aria-label="Workspace status">
+            <span class="status-pill">Live workspace</span>
+            <button class="icon-button" type="button" aria-label="Search">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m21 21-4.35-4.35m1.35-5.15a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <section class="content-stage" id="content-stage" aria-live="polite">
+          <div class="page-hero">
+            <div>
+              <p class="section-label" id="page-kicker">Overview</p>
+              <h2 id="page-heading">Dashboard foundation</h2>
+              <p id="page-description">
+                A polished placeholder for the SOLO dashboard experience.
+              </p>
+            </div>
+            <div class="page-orbit" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+
+          <div class="placeholder-grid">
+            <article class="placeholder-card">
+              <span class="placeholder-line placeholder-line--short"></span>
+              <span class="placeholder-line"></span>
+              <span class="placeholder-line placeholder-line--wide"></span>
+            </article>
+            <article class="placeholder-card placeholder-card--featured">
+              <span class="placeholder-line placeholder-line--short"></span>
+              <span class="placeholder-block"></span>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
