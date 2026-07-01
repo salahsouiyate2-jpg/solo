@@ -1,15 +1,15 @@
 ﻿const pages = [
   {
     id: "today",
-    label: "Today",
+    label: "Aujourd'hui",
     icon: "M8 2v3m8-3v3M4 9h16M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm3 9 2 2 5-5",
     kicker: "Focus",
-    heading: "Today",
-    description: "The guided daily workspace for SOLO.",
+    heading: "Aujourd'hui",
+    description: "Choose the business outcome you want SOLO to improve.",
   },
   {
     id: "campaigns",
-    label: "Campaigns",
+    label: "Campagnes",
     icon: "M3 11v2a2 2 0 0 0 2 2h2l4 4V5L7 9H5a2 2 0 0 0-2 2Zm15.5-3.5a5 5 0 0 1 0 9M21 5a9 9 0 0 1 0 14",
     kicker: "Marketing",
     heading: "Campaigns foundation",
@@ -33,7 +33,7 @@
   },
   {
     id: "results",
-    label: "Results",
+    label: "Résultats",
     icon: "M4 19V5m0 14h16M8 16v-5m4 5V8m4 8v-7",
     kicker: "Progress",
     heading: "Results foundation",
@@ -47,6 +47,14 @@
     heading: "Calendar foundation",
     description: "A quiet planning overview for automatic marketing events.",
   },
+  {
+    id: "settings",
+    label: "Settings",
+    icon: "M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Zm8-3.5a7.8 7.8 0 0 0-.09-1.2l2.02-1.57-2-3.46-2.38.96a8.24 8.24 0 0 0-2.07-1.2L15.12 3h-4l-.36 2.53a8.24 8.24 0 0 0-2.07 1.2l-2.38-.96-2 3.46 2.02 1.57a7.8 7.8 0 0 0 0 2.4L4.31 14.77l2 3.46 2.38-.96a8.24 8.24 0 0 0 2.07 1.2l.36 2.53h4l.36-2.53a8.24 8.24 0 0 0 2.07-1.2l2.38.96 2-3.46-2.02-1.57c.06-.39.09-.79.09-1.2Z",
+    kicker: "Business",
+    heading: "Settings",
+    description: "Business profile and demo controls.",
+  },
 ];
 
 const navList = document.querySelector("#nav-list");
@@ -54,8 +62,147 @@ const pageTitle = document.querySelector("#page-title");
 const contentStage = document.querySelector("#content-stage");
 let demoPanel;
 let demoBusinessStage = "active";
+let routeContext = {};
 
 const DEMO_STATE_KEY = "solo-pizzeria-demo-state";
+
+function safeStorageGet(storage, key) {
+  try {
+    return storage.getItem(key);
+  } catch (error) {
+    return null;
+  }
+}
+
+function safeStorageSet(storage, key, value) {
+  try {
+    storage.setItem(key, value);
+  } catch (error) {
+    // Demo still works in memory when browser storage is unavailable.
+  }
+}
+
+function safeStorageRemove(storage, key) {
+  try {
+    storage.removeItem(key);
+  } catch (error) {
+    // Storage may be unavailable in some file/browser contexts.
+  }
+}
+
+function defaultStudioMission() {
+  return {
+    id: "cheese-pull-reel",
+    created: true,
+    name: "Cheese Pull Reel",
+    linkedCampaign: "Signature Reel Series",
+    objective: "Increase visibility and appetite appeal",
+    expectedOutcome: "More Instagram engagement and restaurant visits",
+    platform: "Instagram Reels",
+    requiredAssets: ["5 vertical clips", "Natural light", "Clean table", "Restaurant entrance"],
+    status: "ready",
+    currentClip: 0,
+    published: false,
+    clipOrder: [0, 1, 2, 3, 4],
+    clips: [
+      { status: "pending", attempts: 0 },
+      { status: "pending", attempts: 0 },
+      { status: "pending", attempts: 0 },
+      { status: "pending", attempts: 0 },
+      { status: "pending", attempts: 0 },
+    ],
+    package: {
+      hook: "La vraie pizza napolitaine, préparée sous vos yeux.",
+      caption: "La vraie pizza napolitaine, préparée sous vos yeux. Du four à votre table, chaque détail compte.",
+      hashtags: "#PizzaNapoletana #CasablancaFood #SoloPizzeria #PizzaLovers",
+      cta: "Réservez votre table aujourd’hui.",
+      postingTime: "Friday 19:00",
+      musicStyle: "Warm Italian instrumental with a modern rhythm",
+      thumbnail: "Use the clearest cheese-stretch frame",
+    },
+  };
+}
+
+function defaultBusinessIntelligenceProfile() {
+  return {
+    version: "1.0",
+    updatedAt: "",
+    identity: {
+      businessName: "Solo Pizzeria Napoletana",
+      industry: "Food & Beverage",
+      businessCategory: "Premium Italian restaurant",
+      city: "Casablanca",
+      numberOfLocations: 1,
+      yearsInBusiness: 3,
+      numberOfEmployees: 8,
+    },
+    goals: {
+      primaryGoal: "More Reviews",
+      secondaryGoal: "More Reservations",
+      currentBiggestChallenge: "Review acquisition is not systematic",
+      successMetric: "Reach 500 Google reviews",
+      desiredTimeHorizon: "4 months",
+    },
+    products: {
+      bestSellingProducts: "Neapolitan pizza, tiramisu",
+      highestMarginProducts: "Signature pizzas, desserts",
+      productsNeedingPromotion: "Weekend family menu",
+      seasonalProducts: "Summer drinks, Ramadan family menu",
+      averageOrderValue: 140,
+    },
+    customers: {
+      targetAudience: "Families, professionals, young adults",
+      customerSegments: "Families on weekends, office workers at lunch, food lovers at night",
+      buyingMotivations: "Authentic Italian taste, premium atmosphere, social dining",
+      peakDays: "Friday, Saturday, Sunday",
+      peakHours: "19:00-22:00",
+      returningCustomerPercentage: "",
+    },
+    marketing: {
+      instagram: "@solopizzeria",
+      facebook: "",
+      tiktok: "",
+      whatsapp: "Available",
+      googleBusinessProfile: "Active",
+      website: "",
+      postingFrequency: "2 posts per week",
+      runningAds: "No",
+      previousCampaigns: "Google Review Growth System, Signature Reel Series",
+      currentContentTypes: "Pizza preparation, restaurant atmosphere, customer moments",
+    },
+    resources: {
+      monthlyMarketingBudget: "",
+      advertisingBudget: "",
+      availableTime: "30 minutes per week",
+      canCreatePhotos: "Yes",
+      canCreateVideos: "Yes",
+      staffAvailable: "Yes",
+      ownerPersonallyInvolved: "Sometimes",
+    },
+    performance: {
+      revenueTrend: "Stable",
+      weeklyCustomers: "",
+      averageOrderValue: 140,
+      reviews: 334,
+      averageRating: 4.5,
+      bestPerformingDays: "Friday, Saturday",
+      weakestDays: "Tuesday, Wednesday",
+    },
+    competition: {
+      mainCompetitors: "",
+      biggestCompetitiveAdvantage: "Premium Neapolitan positioning and strong product visuals",
+      biggestWeaknessComparedToCompetitors: "Review acquisition and repeat customer system are not yet consistent",
+    },
+    context: {
+      opportunities: "Ramadan, summer, families, office area, weekend demand",
+      constraints: "Weekday traffic weaker than weekends",
+      localEvents: "Football nights, holidays, summer season",
+    },
+    observations: {
+      consultantNotes: "Customers already trust the product. Food visuals are strong. Review collection should become a habit before scaling visibility.",
+    },
+  };
+}
 
 function defaultDemoState() {
   return {
@@ -65,70 +212,108 @@ function defaultDemoState() {
       city: "Casablanca",
       brandPositioning: "Premium Italian",
       averageTicket: 140,
-      mainGoal: "More Reviews",
+      mainGoal: "More customers and stronger trust",
       customerType: ["Families", "Professionals", "Young Adults"],
       googleRating: 4.5,
       numberOfReviews: 334,
       instagramHandle: "@solopizzeria",
       postingFrequency: 2,
       whatsappAvailable: true,
-      biggestProblem: "Few Returning Customers",
+      biggestProblem: "Weak review acquisition",
       busyDays: "weekends",
       weekdayTraffic: "weak",
       seasonality: ["Ramadan", "Summer", "Football Events"]
     },
     todayStep: 0,
+    studioView: "prepared",
     weeklyCompleted: 2,
     reviews: 334,
     customers: 31,
     revenue: 31400,
     momentum: "Strong",
+    returningCustomersThisMonth: 4,
+    whatsappCommunityMembers: 86,
+    lastContentPublishedAt: "2026-06-24T18:30:00.000Z",
+    harvestRecalculating: false,
     recentWins: [
       "+3 Google reviews this week"
     ],
     recentActivity: [
       "Google review received this week",
-      "Review Growth plan prepared"
+      "Google Review Growth System prepared",
+      "Staff review script ready"
     ],
     campaigns: {
-      "google-review-engine": "Active",
+      "google-review-growth-system": "Active",
       "signature-reel-series": "Active",
-      "story-challenge": "Planned",
-      "whatsapp-vip-club": "Planned"
+      "story-mention-system": "Planned",
+      "whatsapp-vip-list": "Planned",
+      "weekend-family-menu": "Planned"
     },
     results: [],
     learning_events: [],
     completedPlanSteps: {},
     completedCampaigns: [],
     studio: {},
+    studioMission: defaultStudioMission(),
+    businessIntelligenceProfile: defaultBusinessIntelligenceProfile(),
     completedCalendarItems: []
   };
+}
+
+function deepMergeProfile(defaults, saved) {
+  if (!saved || typeof saved !== "object" || Array.isArray(saved)) return defaults;
+  return Object.fromEntries(Object.entries(defaults).map(([key, value]) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return [key, deepMergeProfile(value, saved[key])];
+    }
+    return [key, saved[key] !== undefined ? saved[key] : value];
+  }));
 }
 
 let demoState = loadDemoState();
 
 function loadDemoState() {
+  const defaults = defaultDemoState();
   try {
-    const saved = localStorage.getItem(DEMO_STATE_KEY);
-    if (!saved) return defaultDemoState();
-    const defaults = defaultDemoState();
+    const saved = safeStorageGet(localStorage, DEMO_STATE_KEY);
+    if (!saved) return defaults;
     const parsed = JSON.parse(saved);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      safeStorageRemove(localStorage, DEMO_STATE_KEY);
+      return defaults;
+    }
     return {
       ...defaults,
       ...parsed,
       businessProfile: { ...defaults.businessProfile, ...(parsed.businessProfile || {}) },
       campaigns: { ...defaults.campaigns, ...(parsed.campaigns || {}) },
       completedPlanSteps: { ...defaults.completedPlanSteps, ...(parsed.completedPlanSteps || {}) },
-      results: parsed.results || defaults.results,
-      learning_events: parsed.learning_events || defaults.learning_events,
+      businessIntelligenceProfile: deepMergeProfile(defaults.businessIntelligenceProfile, parsed.businessIntelligenceProfile),
+      results: Array.isArray(parsed.results) ? parsed.results : defaults.results,
+      learning_events: Array.isArray(parsed.learning_events) ? parsed.learning_events : defaults.learning_events,
+      completedCampaigns: Array.isArray(parsed.completedCampaigns) ? parsed.completedCampaigns : defaults.completedCampaigns,
+      recentWins: Array.isArray(parsed.recentWins) ? parsed.recentWins : defaults.recentWins,
+      recentActivity: Array.isArray(parsed.recentActivity) ? parsed.recentActivity : defaults.recentActivity,
+      completedCalendarItems: Array.isArray(parsed.completedCalendarItems) ? parsed.completedCalendarItems : defaults.completedCalendarItems,
+      studio: parsed.studio && typeof parsed.studio === "object" ? parsed.studio : defaults.studio,
+      studioMission: {
+        ...defaults.studioMission,
+        ...(parsed.studioMission && typeof parsed.studioMission === "object" ? parsed.studioMission : {}),
+        clips: Array.isArray(parsed.studioMission?.clips) && parsed.studioMission.clips.length === 5
+          ? parsed.studioMission.clips.map((clip, index) => ({ ...defaults.studioMission.clips[index], ...(clip || {}) }))
+          : defaults.studioMission.clips,
+        package: { ...defaults.studioMission.package, ...(parsed.studioMission?.package || {}) },
+      },
     };
   } catch (error) {
-    return defaultDemoState();
+    safeStorageRemove(localStorage, DEMO_STATE_KEY);
+    return defaults;
   }
 }
 
 function saveDemoState() {
-  localStorage.setItem(DEMO_STATE_KEY, JSON.stringify(demoState));
+  safeStorageSet(localStorage, DEMO_STATE_KEY, JSON.stringify(demoState));
 }
 
 function updateDemoState(updater, message = "Progress updated") {
@@ -140,7 +325,9 @@ function updateDemoState(updater, message = "Progress updated") {
 
 function resetDemoState() {
   demoState = defaultDemoState();
+  safeStorageRemove(localStorage, DEMO_STATE_KEY);
   saveDemoState();
+  closeDemoModal();
   showDemoPanel("Demo reset", "Solo Pizzeria demo state restored.");
   setActivePage(document.body.dataset.page || "today", false);
 }
@@ -151,6 +338,7 @@ function openDemoModal(title, body) {
 
   const modal = document.createElement("div");
   modal.className = "demo-modal-backdrop";
+  modal.dataset.demoAction = "close-modal-backdrop";
   modal.innerHTML = `
     <div class="demo-modal" role="dialog" aria-modal="true" aria-label="${title}">
       <div class="demo-modal__top">
@@ -232,6 +420,213 @@ function iconPath(path) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"></path></svg>`;
 }
 
+function clampNumber(value, min, max) {
+  return Math.min(Math.max(Number(value) || 0, min), max);
+}
+
+function daysSince(dateValue) {
+  const date = dateValue ? new Date(dateValue) : null;
+  if (!date || Number.isNaN(date.getTime())) return Infinity;
+  return Math.max(0, (Date.now() - date.getTime()) / 86400000);
+}
+
+function calculateBusinessHealth(state = stableState()) {
+  const reviewsCurrent = clampNumber(state.reviews || state.businessProfile?.numberOfReviews, 0, 500);
+  const reviewsTarget = 500;
+  const activeCampaigns = Object.values(state.campaigns || {}).filter((status) => String(status).toLowerCase() === "active").length;
+  const contentAge = daysSince(state.lastContentPublishedAt);
+  const returningCustomers = clampNumber(state.returningCustomersThisMonth, 0, 5);
+  const whatsappMembers = clampNumber(state.whatsappCommunityMembers, 0, 100000);
+  const missionStatus = String(state.studioMission?.status || "").toLowerCase();
+  const clipsApproved = Array.isArray(state.studioMission?.clips)
+    ? state.studioMission.clips.filter((clip) => clip.status === "approved").length
+    : 0;
+  const missionCompleted = state.studioMission?.published || missionStatus === "published" || clipsApproved >= 5;
+  const missionInProgress = ["filming", "assembly", "ready"].includes(missionStatus) || clipsApproved > 0;
+
+  const signals = [
+    {
+      label: "Avis Google",
+      value: `${reviewsCurrent}/${reviewsTarget}`,
+      points: Math.min((reviewsCurrent / reviewsTarget) * 25, 25),
+      max: 25,
+    },
+    {
+      label: "Campagnes actives",
+      value: `${activeCampaigns}/3`,
+      points: Math.min(activeCampaigns, 3) * 10,
+      max: 30,
+    },
+    {
+      label: "Contenu récent",
+      value: contentAge < 7 ? "moins de 7 jours" : contentAge < 14 ? "moins de 14 jours" : "à relancer",
+      points: contentAge < 7 ? 15 : contentAge < 14 ? 8 : 0,
+      max: 15,
+    },
+    {
+      label: "Clients récurrents",
+      value: `${returningCustomers}/5`,
+      points: Math.min(returningCustomers, 5) * 4,
+      max: 20,
+    },
+    {
+      label: "Communauté WhatsApp",
+      value: whatsappMembers > 0 ? `${whatsappMembers} membres` : "à créer",
+      points: whatsappMembers > 0 ? 10 : 0,
+      max: 10,
+    },
+    {
+      label: "Mission Studio",
+      value: missionCompleted ? "terminée" : missionInProgress ? "en cours" : "à démarrer",
+      points: missionCompleted ? 10 : missionInProgress ? 5 : 0,
+      max: 10,
+    },
+  ].map((signal) => ({
+    ...signal,
+    points: Math.round(signal.points),
+    ratio: signal.max ? signal.points / signal.max : 0,
+  }));
+
+  const score = Math.min(100, Math.round(signals.reduce((total, signal) => total + signal.points, 0)));
+  const status = score >= 70 ? "EN PROGRESSION" : score >= 40 ? "À SURVEILLER" : "ACTION REQUISE";
+  const color = score >= 70 ? "#4ade80" : score >= 40 ? "#f59e0b" : "#f87171";
+  const explanation = score >= 70
+    ? "La dynamique est bonne, mais certains leviers peuvent encore accélérer la croissance."
+    : score >= 40
+      ? "Le commerce avance, mais quelques signaux demandent une attention rapide."
+      : "Les signaux principaux sont faibles et demandent une action aujourd'hui.";
+  const lowestSignals = [...signals].sort((a, b) => a.ratio - b.ratio).slice(0, 3);
+
+  return { score, status, color, explanation, signals, lowestSignals };
+}
+
+function animateBusinessHealthScore() {
+  const scoreNode = contentStage.querySelector("[data-health-score]");
+  const circleNode = contentStage.querySelector("[data-health-circle]");
+  if (!scoreNode) return;
+  const target = Number(scoreNode.dataset.healthScore || 0);
+  const getNow = () => (window.performance?.now ? window.performance.now() : Date.now());
+  const frame = window.requestAnimationFrame?.bind(window) || ((callback) => window.setTimeout(() => callback(getNow()), 16));
+  const start = getNow();
+  const duration = 800;
+  const tick = (now) => {
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    scoreNode.textContent = String(Math.round(target * eased));
+    if (circleNode) {
+      circleNode.style.setProperty("--health-progress", `${target * eased * 3.6}deg`);
+    }
+    if (progress < 1) {
+      frame(tick);
+    }
+  };
+  scoreNode.textContent = "0";
+  frame(tick);
+}
+
+function frenchTodayDate() {
+  return new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
+}
+
+function normalizePageId(pageId = "") {
+  const clean = String(pageId || "").replace(/^#/, "").replace(/^\//, "").trim();
+  const [rawPage] = clean.split("?");
+  const aliases = {
+    home: "today",
+    aujourd: "today",
+    "aujourd'hui": "today",
+    campagne: "campaigns",
+    campagnes: "campaigns",
+    resultat: "results",
+    resultats: "results",
+    "résultat": "results",
+    "résultats": "results",
+    result: "results",
+    dashboard: "today",
+    "": "today",
+  };
+  return aliases[rawPage] || rawPage || "today";
+}
+
+function readRouteContext(route = "") {
+  const cleaned = String(route || "").replace(/^#/, "");
+  const hashQuery = cleaned.includes("?") ? cleaned.slice(cleaned.indexOf("?") + 1) : "";
+  const searchQuery = window.location?.search ? window.location.search.slice(1) : "";
+  const params = new URLSearchParams([searchQuery, hashQuery].filter(Boolean).join("&"));
+  return {
+    campaignId: params.get("campaign_id") || params.get("id") || "",
+    action: params.get("action") || "",
+  };
+}
+
+function routeFor(pageId, params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") query.set(key, value);
+  });
+  return `#${pageId}${query.toString() ? `?${query.toString()}` : ""}`;
+}
+
+function navigateWithContext(pageId, params = {}) {
+  const route = routeFor(pageId, params);
+  routeContext = readRouteContext(route);
+  setActivePage(route, false);
+  history.pushState({ page: pageId, ...routeContext }, "", route);
+}
+
+function campaignNameFromId(campaignId = "") {
+  const names = {
+    "google-review-growth-system": "Google Review Growth System",
+    "signature-reel-series": "Signature Reel Series",
+    "weekend-family-menu": "Weekend Family Menu",
+    "story-mention-system": "Story Mention System",
+    "whatsapp-vip-list": "WhatsApp VIP List",
+  };
+  return names[campaignId] || campaignId.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function missionForCampaign(campaignId = "signature-reel-series", currentMission = defaultStudioMission()) {
+  const id = campaignId || "signature-reel-series";
+  if (id === "google-review-growth-system") {
+    return {
+      ...currentMission,
+      activeCampaignId: id,
+      name: "Review Growth Content Package",
+      linkedCampaign: "Google Review Growth System",
+      objective: "Make review collection visible and easy",
+      expectedOutcome: "+5 reviews per week and stronger Google trust",
+      platform: "Google Business / WhatsApp",
+      requiredAssets: ["QR review card", "Staff script", "WhatsApp reminder", "Bill insert"],
+    };
+  }
+  if (id === "weekend-family-menu") {
+    return {
+      ...currentMission,
+      activeCampaignId: id,
+      name: "Weekend Family Menu Package",
+      linkedCampaign: "Weekend Family Menu",
+      objective: "Increase weekend group revenue",
+      expectedOutcome: "More family orders and higher average ticket",
+      platform: "Instagram / WhatsApp",
+      requiredAssets: ["Menu visual", "Story frame", "WhatsApp copy", "Table reminder"],
+    };
+  }
+  return {
+    ...currentMission,
+    activeCampaignId: id,
+    name: "Cheese Pull Reel",
+    linkedCampaign: campaignNameFromId(id),
+    objective: "Increase visibility and appetite appeal",
+    expectedOutcome: "More Instagram engagement and restaurant visits",
+    platform: "Instagram Reels",
+    requiredAssets: ["5 vertical clips", "Natural light", "Clean table", "Restaurant entrance"],
+  };
+}
+
 function statusStrip(items) {
   return `<div class="status-strip">${items.map((item) => `<span>${item}</span>`).join("")}</div>`;
 }
@@ -274,18 +669,17 @@ function enhancePageActions() {
 }
 
 document.addEventListener("click", (event) => {
+  if (event.target.classList?.contains("demo-modal-backdrop")) {
+    closeDemoModal();
+    return;
+  }
+
   const button = event.target.closest("button");
   if (button && button.closest(".nav-list")) return;
 
   const action = button?.dataset.demoAction;
   if (button && action) {
     handleDemoAction(action, button);
-    return;
-  }
-
-  const calendarItem = event.target.closest("[data-calendar-item]");
-  if (calendarItem) {
-    openCalendarDetail(calendarItem.dataset.calendarItem);
     return;
   }
 
@@ -312,13 +706,79 @@ document.addEventListener("click", (event) => {
   showDemoPanel(label);
 });
 
+function saveBusinessIntelligenceInput(control) {
+  const field = control?.dataset?.biField;
+  if (!field) return;
+  const state = stableState();
+  const rawValue = String(control.value ?? "").trim();
+  const value = control.type === "number" && rawValue !== "" ? Number(rawValue) : rawValue;
+  const numericValue = Number(value);
+  const hasNumericValue = rawValue !== "" && Number.isFinite(numericValue);
+  setNestedValue(state.businessIntelligenceProfile, field, value);
+  state.businessIntelligenceProfile.updatedAt = new Date().toISOString();
+
+  if (field === "identity.businessName") state.businessProfile.businessName = value || state.businessProfile.businessName;
+  if (field === "identity.businessCategory") state.businessProfile.brandPositioning = value || state.businessProfile.brandPositioning;
+  if (field === "identity.city") state.businessProfile.city = value || state.businessProfile.city;
+  if ((field === "products.averageOrderValue" || field === "performance.averageOrderValue") && hasNumericValue) {
+    state.businessProfile.averageTicket = numericValue;
+  }
+  if (field === "performance.reviews") {
+    if (hasNumericValue) {
+      state.reviews = numericValue;
+      state.businessProfile.numberOfReviews = numericValue;
+    }
+  }
+  if (field === "performance.averageRating" && hasNumericValue) state.businessProfile.googleRating = numericValue;
+  if (field === "marketing.instagram") state.businessProfile.instagramHandle = value || state.businessProfile.instagramHandle;
+
+  saveDemoState();
+  const memoryOutput = document.querySelector("[data-bi-memory-output]");
+  if (memoryOutput) memoryOutput.textContent = JSON.stringify(buildBusinessIntelligenceMemory(state.businessIntelligenceProfile), null, 2);
+  const status = document.querySelector("[data-bi-save-status]");
+  if (status) {
+    status.textContent = "Saved";
+    window.clearTimeout(saveBusinessIntelligenceInput.timer);
+    saveBusinessIntelligenceInput.timer = window.setTimeout(() => {
+      status.textContent = "Auto-saves as you type";
+    }, 1400);
+  }
+}
+
+document.addEventListener("input", (event) => {
+  const control = event.target.closest?.("[data-bi-field]");
+  if (control) saveBusinessIntelligenceInput(control);
+});
+
+document.addEventListener("change", (event) => {
+  const control = event.target.closest?.("[data-bi-field]");
+  if (control) saveBusinessIntelligenceInput(control);
+});
+
 document.addEventListener("submit", (event) => {
+  const studioForm = event.target.closest("[data-demo-form='studio-assets']");
+  if (studioForm) {
+    event.preventDefault();
+    const data = new FormData(studioForm);
+    const state = stableState();
+    state.studioMission.package.caption = String(data.get("caption") || state.studioMission.package.caption).trim();
+    state.studioMission.package.cta = String(data.get("cta") || state.studioMission.package.cta).trim();
+    state.studioMission.package.hashtags = String(data.get("hashtags") || state.studioMission.package.hashtags).trim();
+    stableSave("Publishing assets updated");
+    closeDemoModal();
+    setActivePage("studio", false);
+    return;
+  }
+
   const form = event.target.closest("[data-demo-form='add-result']");
   if (!form) return;
 
   event.preventDefault();
   const data = new FormData(form);
   const reviews = Number(data.get("reviews") || 0);
+  const views = Number(data.get("views") || 0);
+  const messages = Number(data.get("messages") || 0);
+  const reservations = Number(data.get("reservations") || 0);
   const customers = Number(data.get("customers") || 0);
   const revenue = Number(data.get("revenue") || 0);
   const notes = String(data.get("notes") || "").trim();
@@ -327,7 +787,7 @@ document.addEventListener("submit", (event) => {
     state.reviews += reviews;
     state.customers += customers;
     state.revenue += revenue;
-    state.results.push({ reviews, customers, revenue, notes, savedAt: new Date().toISOString() });
+    state.results.push({ reviews, views, messages, reservations, customers, revenue, notes, savedAt: new Date().toISOString() });
     state.learning_events.push({
       campaign: generateSoloBrain().selected.campaign,
       impressions: 0,
@@ -341,9 +801,10 @@ document.addEventListener("submit", (event) => {
     state.momentum = reviews + customers + revenue > 0 ? "Growing" : state.momentum;
     if (reviews > 0) state.recentWins.unshift(`+${reviews} reviews saved`);
     if (customers > 0) state.recentWins.unshift(`+${customers} customers gained`);
-    state.recentActivity.unshift(`Result saved: +${reviews} reviews, +${customers} customers`);
+    state.recentActivity.unshift(`Result saved: ${views} views, ${messages} messages, ${reservations} reservations, +${customers} customers`);
     if (notes) state.recentActivity.unshift(`Note: ${notes}`);
   }, "Result saved");
+  closeDemoModal();
 });
 
 function handleDemoAction(action, button) {
@@ -354,6 +815,36 @@ function handleDemoAction(action, button) {
 
   if (action === "reset-demo") {
     resetDemoState();
+    return;
+  }
+
+  if (action === "open-settings") {
+    setActivePage("settings");
+    return;
+  }
+
+  if (action === "search") {
+    showDemoPanel("Recherche", "La recherche est prête en mode démo.");
+    return;
+  }
+
+  if (action === "home-best-move") {
+    const campaignId = button?.dataset?.campaignId || "google-review-growth-system";
+    const target = button?.dataset?.targetPage || "campaigns";
+    if (target === "studio") {
+      navigateWithContext("studio", { campaign_id: campaignId });
+    } else {
+      navigateWithContext("campaigns", { action: "launch", id: campaignId });
+    }
+    return;
+  }
+
+  if (action === "campaign-to-studio") {
+    const campaignId = button?.dataset?.campaignId || "signature-reel-series";
+    state.studioMission = missionForCampaign(campaignId, state.studioMission);
+    state.studioMission.created = true;
+    saveDemoState();
+    navigateWithContext("studio", { campaign_id: campaignId });
     return;
   }
 
@@ -389,7 +880,7 @@ function handleDemoAction(action, button) {
   }
 
   if (action === "campaign-detail") {
-    openCampaignModal(button.dataset.campaignId);
+    navigateWithContext("studio", { campaign_id: button.dataset.campaignId || "google-review-growth-system" });
     return;
   }
 
@@ -399,7 +890,11 @@ function handleDemoAction(action, button) {
   }
 
   if (action === "studio-prepare") {
-    openStudioModal(button.dataset.reelId);
+    const campaignId = button.dataset.campaignId || routeContext.campaignId || "signature-reel-series";
+    demoState.studioMission = missionForCampaign(campaignId, stableState().studioMission);
+    demoState.studioMission.created = true;
+    saveDemoState();
+    navigateWithContext("studio", { campaign_id: campaignId });
     return;
   }
 
@@ -409,7 +904,8 @@ function handleDemoAction(action, button) {
   }
 
   if (action === "calendar-complete") {
-    completeCalendarItem(button.dataset.calendarItem);
+    showDemoPanel("Calendar", "Calendar is an orientation view in the stable demo.");
+    closeDemoModal();
   }
 }
 
@@ -699,16 +1195,23 @@ const BusinessProfileEngine = {
   normalize(rawProfile = {}) {
     const defaults = defaultDemoState().businessProfile;
     const profile = { ...defaults, ...rawProfile };
+    const customerType = Array.isArray(profile.customerType || profile.target_customer)
+      ? (profile.customerType || profile.target_customer)
+      : defaults.customerType;
+    const socialChannels = Array.isArray(profile.socialChannels || profile.social_channels)
+      ? (profile.socialChannels || profile.social_channels)
+      : ["Instagram", "Google", "WhatsApp"];
+    const seasonality = Array.isArray(profile.seasonality) ? profile.seasonality : defaults.seasonality;
     return {
       id: profile.id || "solo-pizzeria",
       business_name: profile.businessName || profile.business_name,
       business_type: profile.businessType || profile.business_type,
       city: profile.city,
-      target_customer: profile.customerType || profile.target_customer || [],
+      target_customer: customerType,
       main_goal: profile.mainGoal || profile.main_goal,
       budget_level: profile.budgetLevel || profile.budget_level || "Low",
       preferred_language: profile.preferredLanguage || profile.preferred_language || "French / Darija",
-      social_channels: profile.socialChannels || profile.social_channels || ["Instagram", "Google", "WhatsApp"],
+      social_channels: socialChannels,
       instagram_handle: profile.instagramHandle || profile.instagram_handle,
       whatsapp_number: profile.whatsappNumber || profile.whatsapp_number || "",
       brand_positioning: profile.brandPositioning,
@@ -720,7 +1223,7 @@ const BusinessProfileEngine = {
       biggest_problem: profile.biggestProblem || profile.biggest_problem || "",
       busy_days: profile.busyDays || profile.busy_days || "",
       weekday_traffic: profile.weekdayTraffic || profile.weekday_traffic || "",
-      seasonality: profile.seasonality || [],
+      seasonality,
     };
   }
 };
@@ -975,7 +1478,7 @@ function campaignPlanFor(recommendation) {
 }
 
 function getDemoOpenAiKey() {
-  return localStorage.getItem("solo-openai-api-key") || window.SOLO_OPENAI_API_KEY || "";
+  return safeStorageGet(localStorage, "solo-openai-api-key") || window.SOLO_OPENAI_API_KEY || "";
 }
 
 async function maybeImproveRecommendationWording(recommendation) {
@@ -986,9 +1489,9 @@ async function maybeImproveRecommendationWording(recommendation) {
 
   const cacheKey = `solo-ai-copy-${recommendation.id}`;
   try {
-    const cached = sessionStorage.getItem(cacheKey);
+    const cached = safeStorageGet(sessionStorage, cacheKey);
     const copy = cached ? JSON.parse(cached) : await fetchAiRecommendationCopy(key, recommendation);
-    if (!cached) sessionStorage.setItem(cacheKey, JSON.stringify(copy));
+    if (!cached) safeStorageSet(sessionStorage, cacheKey, JSON.stringify(copy));
     if (copy.title && copy.whyNow) {
       titleNode.textContent = copy.title;
       reasonNode.textContent = copy.whyNow;
@@ -1006,7 +1509,7 @@ async function fetchAiRecommendationCopy(key, recommendation) {
       "Authorization": `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model: localStorage.getItem("solo-openai-model") || "gpt-4.1-mini",
+      model: safeStorageGet(localStorage, "solo-openai-model") || "gpt-4.1-mini",
       input: `Rewrite this recommendation as compact executive copy for a Moroccan restaurant owner. Return JSON only with keys title and whyNow. Title max 5 words. WhyNow max 12 words. Keep logic unchanged.\nTitle: ${recommendation.title}\nWhy now: ${recommendation.whyNow}`,
     }),
   });
@@ -1510,7 +2013,7 @@ function renderFocusedCalendarPage() {
 function calendarMoment(day, title, purpose, tone, id) {
   const completed = demoState.completedCalendarItems.includes(id);
   return `
-    <article class="calendar-moment ${completed ? "completed" : tone}" data-calendar-item="${id}" tabindex="0" role="button">
+    <article class="calendar-moment ${completed ? "completed" : tone}">
       <span>${day}</span>
       <strong>${title}</strong>
       <p>Purpose: ${completed ? "Completed" : purpose}</p>
@@ -1521,7 +2024,7 @@ function calendarMoment(day, title, purpose, tone, id) {
 function calendarEvent(title, timing, tone, id) {
   const completed = demoState.completedCalendarItems.includes(id);
   return `
-    <article class="calendar-event ${completed ? "completed" : tone}" data-calendar-item="${id}" tabindex="0" role="button">
+    <article class="calendar-event ${completed ? "completed" : tone}">
       <strong>${title}</strong>
       <span>${completed ? "Completed" : timing}</span>
     </article>
@@ -1550,7 +2053,7 @@ function calendarMonthView() {
         return `
           <div class="apple-calendar-day">
             <b>${day}</b>
-            ${event ? `<small class="apple-calendar-event ${demoState.completedCalendarItems.includes(event[2]) ? "completed" : event[1]}" data-calendar-item="${event[2]}" tabindex="0" role="button">${demoState.completedCalendarItems.includes(event[2]) ? "Done" : event[0]}</small>` : ""}
+            ${event ? `<small class="apple-calendar-event ${demoState.completedCalendarItems.includes(event[2]) ? "completed" : event[1]}">${demoState.completedCalendarItems.includes(event[2]) ? "Done" : event[0]}</small>` : ""}
           </div>
         `;
       }).join("")}
@@ -3771,38 +4274,57 @@ function renderSettingsPage() {
 }
 
 function setActivePage(pageId, shouldPush = true) {
-  const page = pages.find((item) => item.id === pageId) || pages[0];
+  const routeValue = String(pageId || "");
+  routeContext = readRouteContext(routeValue);
+  const normalizedPageId = normalizePageId(routeValue);
+  const page = pages.find((item) => item.id === normalizedPageId) || pages[0];
+  let renderedPageId = page.id;
 
-  document.title = `SOLO Â· ${page.label}`;
+  document.title = `SOLO · ${page.label}`;
   pageTitle.textContent = page.label;
   document.body.dataset.page = page.id;
 
-  if (page.id === "today") {
+  try {
+    if (page.id === "today") {
+      renderTodayPage();
+    } else if (page.id === "campaigns") {
+      renderFocusedCampaignsPage();
+    } else if (page.id === "customers") {
+      renderFocusedCustomersPage();
+    } else if (page.id === "studio") {
+      renderFocusedStudioPage();
+    } else if (page.id === "results") {
+      renderFocusedResultsPage();
+    } else if (page.id === "calendar") {
+      renderFocusedCalendarPage();
+    } else if (page.id === "settings") {
+      renderFocusedSettingsPage();
+    } else {
+      renderPlaceholderPage(page);
+    }
+  } catch (error) {
+    demoState = defaultDemoState();
+    saveDemoState();
+    document.body.dataset.page = "today";
+    pageTitle.textContent = "Today";
+    renderedPageId = "today";
     renderTodayPage();
-  } else if (page.id === "campaigns") {
-    renderFocusedCampaignsPage();
-  } else if (page.id === "customers") {
-    renderFocusedCustomersPage();
-  } else if (page.id === "studio") {
-    renderFocusedStudioPage();
-  } else if (page.id === "results") {
-    renderFocusedResultsPage();
-  } else if (page.id === "calendar") {
-    renderFocusedCalendarPage();
-  } else {
-    renderPlaceholderPage(page);
+    showDemoPanel("Demo restored", "Saved demo data was reset because it could not be rendered.");
   }
 
   enhancePageActions();
 
   document.querySelectorAll(".nav-item").forEach((item) => {
-    const isActive = item.dataset.page === page.id;
+    const isActive = item.dataset.page === renderedPageId;
     item.classList.toggle("is-active", isActive);
     item.setAttribute("aria-current", isActive ? "page" : "false");
   });
 
   if (shouldPush) {
-    history.pushState({ page: page.id }, "", `#${page.id}`);
+    const params = {};
+    if (routeContext.campaignId) params.campaign_id = routeContext.campaignId;
+    if (routeContext.action) params.action = routeContext.action;
+    history.pushState({ page: renderedPageId, ...routeContext }, "", routeFor(renderedPageId, params));
   }
 }
 
@@ -3852,10 +4374,11 @@ function setupMarketingCalendarInteractions() {
 function renderNavigation() {
   const label = document.createElement("div");
   label.className = "nav-section-label";
-  label.textContent = "Workflow";
+  label.textContent = "Navigation";
   navList.appendChild(label);
 
-  pages.forEach((page) => {
+  const primaryPages = pages.filter((page) => ["today", "campaigns", "studio", "results"].includes(page.id));
+  primaryPages.forEach((page) => {
     const button = document.createElement("button");
     button.className = "nav-item";
     button.type = "button";
@@ -3866,10 +4389,1616 @@ function renderNavigation() {
   });
 }
 
+/* Stable demo layer: simple interactions only */
+function stableState() {
+  const defaults = defaultDemoState();
+  const savedMission = demoState?.studioMission && typeof demoState.studioMission === "object"
+    ? demoState.studioMission
+    : {};
+  demoState = {
+    ...defaults,
+    ...(demoState && typeof demoState === "object" ? demoState : {}),
+    businessProfile: { ...defaults.businessProfile, ...((demoState && demoState.businessProfile) || {}) },
+    recentWins: Array.isArray(demoState?.recentWins) ? demoState.recentWins : defaults.recentWins,
+    recentActivity: Array.isArray(demoState?.recentActivity) ? demoState.recentActivity : defaults.recentActivity,
+    results: Array.isArray(demoState?.results) ? demoState.results : defaults.results,
+    businessIntelligenceProfile: deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile),
+    studio: demoState?.studio && typeof demoState.studio === "object" ? demoState.studio : {},
+    studioMission: {
+      ...defaults.studioMission,
+      ...savedMission,
+      clips: Array.isArray(savedMission.clips) && savedMission.clips.length === 5
+        ? savedMission.clips.map((clip, index) => ({ ...defaults.studioMission.clips[index], ...(clip || {}) }))
+        : defaults.studioMission.clips,
+      package: { ...defaults.studioMission.package, ...(savedMission.package || {}) },
+      clipOrder: Array.isArray(savedMission.clipOrder) && savedMission.clipOrder.length === 5
+        ? savedMission.clipOrder
+        : defaults.studioMission.clipOrder,
+    },
+  };
+  return demoState;
+}
+
+function stableSave(message = "Progress updated") {
+  stableState();
+  saveDemoState();
+  showDemoPanel(message);
+}
+
+function stableBrain() {
+  const state = stableState();
+  const primaryCompleted = Number(state.weeklyCompleted || 2) >= 3;
+  if (primaryCompleted) {
+    return {
+      title: "Increase Content Visibility",
+      whyNow: "The review system is moving; visual content is the next useful step.",
+      campaign: "Signature Reel Series",
+      confidence_score: 86,
+      expected_impact: "More Instagram discovery and stronger brand image.",
+      benefits: ["More visual discovery", "Stronger premium image", "More reasons to visit"],
+      basis: ["Pizza visuals", "Restaurant atmosphere", "Instagram behavior"],
+      commitment: "3-4 reels per week",
+      chain: ["Strong visual product", "Strong UGC potential", "Visibility opportunity", "Increase awareness", "Content strategy", "Signature Reel Series"],
+    };
+  }
+  return {
+    title: "Strengthen Trust & Visibility",
+    whyNow: "Reviews do not fully reflect customer satisfaction.",
+    campaign: "Google Review Growth System",
+    confidence_score: 90,
+    expected_impact: "+5 reviews per week toward 500 reviews.",
+    benefits: ["Stronger Google visibility", "More customer confidence", "Better social proof before visit"],
+    basis: ["4.5 rating", "334 reviews", "Premium positioning", "Local behavior"],
+    commitment: "5 minutes daily",
+    chain: ["4.5 rating + 334 reviews", "Strong satisfaction but weak review acquisition", "Social proof opportunity", "Reach 500 reviews", "Review growth strategy", "Google Review Growth System"],
+  };
+}
+
+function generateSoloBrain() {
+  const selected = stableBrain();
+  return {
+    selected,
+    recommendations: [selected],
+    diagnosis: selected.chain[1],
+    opportunity: selected.chain[2],
+    objective: selected.chain[3],
+    strategy: selected.chain[4],
+    campaign: selected.campaign,
+  };
+}
+
+function homeRecommendation(state = stableState()) {
+  const isContentNext = Number(state.weeklyCompleted || 2) >= 3;
+  if (isContentNext) {
+    return {
+      eyebrow: "PLUS GRANDE OPPORTUNITÉ AUJOURD'HUI",
+      title: "Préparer la série de reels signature",
+      opportunity: "Highest ROI Opportunity",
+      confidence: "86%",
+      why: "La preuve sociale avance déjà. La prochaine source de croissance est la visibilité du produit.",
+      impact: "+4 réservations/mois",
+      duration: "15 minutes",
+      targetPage: "studio",
+      campaignId: "signature-reel-series",
+      cta: "Aller au Studio",
+      bullets: [
+        "Les pizzas et la préparation sont naturellement visuelles.",
+        "Instagram peut créer plus de découverte locale.",
+        "La mission Studio est prête à transformer l'idée en contenu.",
+      ],
+      basedOn: ["Avis en hausse", "Produit visuel", "Ambiance premium", "Comportement Instagram"],
+    };
+  }
+  return {
+    eyebrow: "PLUS GRANDE OPPORTUNITÉ AUJOURD'HUI",
+    title: "Continuer le système d'avis Google",
+    opportunity: "Highest ROI Opportunity",
+    confidence: "90%",
+    why: "Les clients semblent satisfaits, mais les avis ne reflètent pas encore tout le potentiel du restaurant.",
+    impact: "+5 avis/semaine",
+    duration: "5 minutes",
+    targetPage: "campaigns",
+    campaignId: "google-review-growth-system",
+    cta: "Lancer la campagne",
+    bullets: [
+      "La note Google est forte, donc demander un avis est peu risqué.",
+      "334 avis sur 500 laisse une marge de confiance visible.",
+      "L'effort demandé à l'équipe reste léger et répétable.",
+    ],
+    basedOn: ["4.5 Google", "334 avis", "Positionnement premium", "Habitudes locales"],
+  };
+}
+
+function handleDemoAction(action, button) {
+  const state = stableState();
+
+  if (action === "close-modal" || action === "close-modal-backdrop") {
+    closeDemoModal();
+    return;
+  }
+
+  if (action === "reset-demo") {
+    resetDemoState();
+    return;
+  }
+
+  if (action === "open-settings") {
+    setActivePage("settings");
+    return;
+  }
+
+  if (action === "search") {
+    showDemoPanel("Recherche", "La recherche est prête en mode démo.");
+    return;
+  }
+
+  if (action === "home-best-move") {
+    const campaignId = button?.dataset?.campaignId || "google-review-growth-system";
+    const target = button?.dataset?.targetPage || "campaigns";
+    if (target === "studio") {
+      state.studioMission = missionForCampaign(campaignId, state.studioMission);
+      state.studioMission.created = true;
+      saveDemoState();
+      navigateWithContext("studio", { campaign_id: campaignId });
+    } else {
+      navigateWithContext("campaigns", { action: "launch", id: campaignId });
+    }
+    return;
+  }
+
+  if (action === "campaign-to-studio") {
+    const campaignId = button?.dataset?.campaignId || "signature-reel-series";
+    state.studioMission = missionForCampaign(campaignId, state.studioMission);
+    state.studioMission.created = true;
+    saveDemoState();
+    navigateWithContext("studio", { campaign_id: campaignId });
+    return;
+  }
+
+  if (action === "today-continue") {
+    state.todayStep = Math.min(Number(state.todayStep || 0) + 1, 4);
+    stableSave("Next step opened");
+    setActivePage("today", false);
+    return;
+  }
+
+  if (action === "today-complete") {
+    state.weeklyCompleted = Math.min(Number(state.weeklyCompleted || 2) + 1, 5);
+    state.todayStep = 0;
+    state.harvestRecalculating = true;
+    state.recentWins.unshift("Review system activated");
+    state.recentActivity.unshift("Review system activated · expected +5 reviews/week");
+    stableSave("Harvest is recalculating your business...");
+    closeDemoModal();
+    setActivePage("today", false);
+    window.setTimeout(() => {
+      const nextState = stableState();
+      nextState.harvestRecalculating = false;
+      nextState.weeklyCompleted = Math.max(Number(nextState.weeklyCompleted || 0), 3);
+      nextState.recentActivity.unshift("Next recommendation prepared: Signature Reel Series");
+      saveDemoState();
+      showDemoPanel("Next recommendation ready", "Harvest prepared the next highest ROI opportunity.");
+      setActivePage("today", false);
+    }, 1400);
+    return;
+  }
+
+  if (action === "view-plan" || action === "campaign-detail") {
+    openStableCampaignPanel(button?.dataset?.campaignId || "google-review-growth-system");
+    return;
+  }
+
+  if (action === "studio-prepare") {
+    const campaignId = button?.dataset?.campaignId || routeContext.campaignId || "signature-reel-series";
+    state.studioMission = missionForCampaign(campaignId, state.studioMission);
+    state.studioMission.created = true;
+    state.studioMission.status = state.studioMission.status === "draft" ? "ready" : state.studioMission.status;
+    saveDemoState();
+    closeDemoModal();
+    navigateWithContext("studio", { campaign_id: campaignId });
+    return;
+  }
+
+  if (action === "confirm-studio-mission") {
+    const campaignId = button?.dataset?.campaignId || routeContext.campaignId || "signature-reel-series";
+    state.campaigns[campaignId] = "Active";
+    state.studioMission = missionForCampaign(campaignId, defaultStudioMission());
+    stableSave("Studio mission created");
+    closeDemoModal();
+    navigateWithContext("studio", { campaign_id: campaignId });
+    return;
+  }
+
+  if (action === "studio-start") {
+    state.studioMission.status = "filming";
+    stableSave("Filming mission started");
+    setActivePage("studio", false);
+    return;
+  }
+
+  if (action === "studio-upload" || action === "studio-retry") {
+    validateStudioClip(Number(button?.dataset?.clipIndex || 0));
+    return;
+  }
+
+  if (action === "studio-open-package") {
+    state.studioMission.status = "assembly";
+    const campaignId = button?.dataset?.campaignId || state.studioMission.activeCampaignId || routeContext.campaignId || "signature-reel-series";
+    state.studioMission.activeCampaignId = campaignId;
+    state.recentActivity.unshift(`${campaignNameFromId(campaignId)} content package prepared`);
+    stableSave("Content package prepared");
+    navigateWithContext("results", { campaign_id: campaignId });
+    return;
+  }
+
+  if (action === "studio-edit-assets") {
+    openStudioAssetEditor();
+    return;
+  }
+
+  if (action === "studio-replace-clip") {
+    const index = Number(button?.dataset?.clipIndex || 0);
+    if (state.studioMission.clips[index]) {
+      state.studioMission.clips[index] = { status: "pending", attempts: 0 };
+      state.studioMission.currentClip = index;
+      state.studioMission.status = "filming";
+      stableSave(`Clip ${index + 1} ready to replace`);
+      setActivePage("studio", false);
+    }
+    return;
+  }
+
+  if (action === "studio-adjust-order") {
+    const order = [...state.studioMission.clipOrder];
+    [order[1], order[2]] = [order[2], order[1]];
+    state.studioMission.clipOrder = order;
+    stableSave("Clip order adjusted");
+    setActivePage("studio", false);
+    return;
+  }
+
+  if (action === "studio-copy-caption") {
+    copyStudioCaption();
+    return;
+  }
+
+  if (action === "studio-download-checklist") {
+    downloadStudioChecklist();
+    return;
+  }
+
+  if (action === "studio-publish") {
+    state.studioMission.status = "published";
+    state.studioMission.published = true;
+    if (!state.recentWins.includes("Cheese Pull Reel published")) {
+      state.recentWins.unshift("Cheese Pull Reel published");
+    }
+    state.recentActivity.unshift("Cheese Pull Reel marked as published");
+    stableSave("Published. Results tracking is ready.");
+    setActivePage("studio", false);
+    return;
+  }
+
+  if (action === "studio-track-results") {
+    openStableResultModal();
+    return;
+  }
+
+  if (action === "add-result") {
+    openStableResultModal();
+    return;
+  }
+
+  if (action === "calendar-detail") {
+    openStableCalendarPanel(button?.dataset?.calendarId || "google-review-push");
+    return;
+  }
+
+  if (action === "start-later") {
+    showDemoPanel("Saved for later", "Signature Reel Series remains next in the growth queue.");
+    return;
+  }
+
+  if (action === "growth-area") {
+    openGrowthAreaFlow(button?.dataset?.growthArea || "customers", "recommendation");
+    return;
+  }
+
+  if (action === "growth-view-plan") {
+    openGrowthAreaFlow(button?.dataset?.growthArea || "customers", "plan");
+    return;
+  }
+
+  if (action === "growth-create-campaign") {
+    const area = growthAreaDefinitions()[button?.dataset?.growthArea] || growthAreaDefinitions().customers;
+    state.campaigns[area.campaignId] = "Active";
+    state.activeGrowthArea = area.id;
+    state.recentActivity.unshift(`${area.campaign} created from Growth Hub`);
+    saveDemoState();
+    closeDemoModal();
+    showDemoPanel("Campaign created", `${area.campaign} is now ready in Campaigns.`);
+    setActivePage("campaigns", false);
+    return;
+  }
+
+  showDemoPanel(button?.textContent?.trim() || "Demo action");
+}
+
+function openStableCampaignPanel(campaignId) {
+  const brain = stableBrain();
+  const studioMissionReady = stableState().studioMission.created;
+  const plans = {
+    "google-review-growth-system": {
+      title: "Google Review Growth System",
+      objective: "Reach 500 Google reviews",
+      why: "Satisfied customers are already present, but review collection is not systematic.",
+      expected: "+5 reviews per week",
+      commitment: "5 minutes daily",
+      steps: [
+        "Place QR review card on tables",
+        "Add review reminder with the bill",
+        "Train staff to ask satisfied customers politely",
+        "Send WhatsApp review message after visit when possible",
+        "Track new reviews weekly"
+      ],
+      assets: [
+        "Table QR card",
+        "Staff script",
+        "WhatsApp review message",
+        "Weekly review tracker"
+      ],
+      script: "Merci beaucoup pour votre visite. Si vous avez aime l'experience, un petit avis Google nous aide enormement.",
+      message: "Bonsoir, merci encore pour votre visite chez Solo Pizzeria Napoletana. Si vous avez apprecie l'experience, votre avis Google nous aiderait beaucoup a faire connaitre le restaurant.",
+      kpis: ["Reviews gained per week", "Google rating evolution", "Customer mentions", "New customers mentioning Google"],
+      chain: ["Strong reputation", "Weak review acquisition", "Social proof opportunity", "500 reviews objective", "Review growth strategy", "Google Review Growth System"]
+    },
+    "signature-reel-series": {
+      title: "Signature Reel Series",
+      objective: "Increase visibility through visual content",
+      why: "Pizza, tiramisu, the oven and restaurant atmosphere are highly visual.",
+      expected: "More Instagram discovery and stronger brand image",
+      commitment: "3-4 reels per week",
+      steps: [
+        "Film one cheese pull reel",
+        "Film pizza oven preparation",
+        "Capture tiramisu close-up",
+        "Capture interior atmosphere",
+        "Save customer reaction moments"
+      ],
+      assets: ["Cheese pull reel", "Pizza oven reel", "Tiramisu reel", "Atmosphere reel", "Customer reaction clip"],
+      script: "Keep the focus on food, craft and atmosphere.",
+      message: "Prepared for Instagram discovery.",
+      kpis: ["Reels published", "Profile visits", "Messages", "Customers mentioning Instagram"],
+      chain: ["Strong visual product", "UGC potential", "Visibility opportunity", "Increase awareness", "Content strategy", "Signature Reel Series"]
+    },
+    "story-mention-system": {
+      title: "Story Mention System",
+      objective: "Increase user-generated content",
+      why: "Customers already share restaurant visits and can help build trust.",
+      expected: "20 story mentions per month",
+      commitment: "Light weekly follow-up",
+      steps: ["Encourage tags", "Repost best stories", "Create best customer moment highlight"],
+      assets: ["Story repost template", "Highlight cover", "Staff reminder"],
+      script: "Ask naturally, without pressure.",
+      message: "Keep it reputation-friendly and culturally safe.",
+      kpis: ["Story mentions", "Reposts", "Profile visits"],
+      chain: ["Strong community", "UGC potential", "Community opportunity", "Increase social proof", "Community strategy", "Story Mention System"]
+    },
+    "whatsapp-vip-list": {
+      title: "WhatsApp VIP List",
+      objective: "Increase repeat customers",
+      why: "Moroccan customers rely heavily on WhatsApp communication.",
+      expected: "More returning customers and stronger customer ownership",
+      commitment: "Weekly message discipline",
+      steps: ["Create opt-in list", "Add menu alerts", "Prepare weekend specials", "Add birthday dessert reminders"],
+      assets: ["Opt-in script", "VIP list labels", "Menu alert template"],
+      script: "Invite only interested customers.",
+      message: "Use WhatsApp for useful updates, not noise.",
+      kpis: ["VIP list size", "Replies", "Reservations", "Returning customers"],
+      chain: ["Weak retention", "Untapped WhatsApp potential", "Repeat customer opportunity", "Increase repeat visits", "WhatsApp strategy", "WhatsApp VIP List"]
+    },
+    "weekend-family-menu": {
+      title: "Weekend Family Menu",
+      objective: "Increase weekend revenue",
+      why: "Pizza works naturally for families and groups.",
+      expected: "Higher average order and easier group visits",
+      commitment: "Weekend-only preparation",
+      steps: ["Define family menu", "Prepare visual menu card", "Mention it in Stories", "Track weekend orders"],
+      assets: ["Menu card", "Story format", "Order tracker"],
+      script: "Position for families and friends, not date night.",
+      message: "Keep the offer premium and simple.",
+      kpis: ["Weekend orders", "Average ticket", "Group reservations"],
+      chain: ["Strong weekend demand", "Group dining fit", "Revenue opportunity", "Increase weekend revenue", "Offer strategy", "Weekend Family Menu"]
+    }
+  };
+  const plan = plans[campaignId] || plans["google-review-growth-system"] || {
+    title: brain.campaign,
+    objective: brain.chain[3],
+    why: brain.whyNow,
+    expected: brain.expected_impact,
+    commitment: brain.commitment || "Light owner involvement",
+    steps: ["Complete one owner action", "Track result"],
+    assets: ["Plan"],
+    script: "",
+    message: "",
+    kpis: ["Reviews", "Customers", "Revenue"],
+    chain: brain.chain
+  };
+  openDemoModal(plan.title, `
+    <div class="demo-plan-stack">
+      <article><span>Objective</span><strong>${plan.objective}</strong></article>
+      <article><span>Why this campaign</span><strong>${plan.why}</strong></article>
+      <article><span>Expected result</span><strong>${plan.expected}</strong></article>
+      <article><span>Expected commitment</span><strong>${plan.commitment}</strong></article>
+    </div>
+    <div class="demo-check-list">
+      ${plan.steps.map((step) => `<span>${step}</span>`).join("")}
+    </div>
+    <details class="executive-analysis" open>
+      <summary>Prepared assets</summary>
+      <div class="recommendation-rationale">${plan.assets.map((asset) => `<span>${asset}</span>`).join("")}</div>
+    </details>
+    <details class="executive-analysis">
+      <summary>Staff script and message</summary>
+      <p>${plan.script}</p>
+      <p>${plan.message}</p>
+    </details>
+    <details class="executive-analysis">
+      <summary>See reasoning</summary>
+      <div class="demo-reasoning-chain">${plan.chain.map((item) => `<span>${item}</span>`).join("")}</div>
+      <div class="recommendation-rationale">${plan.kpis.map((item) => `<span>${item}</span>`).join("")}</div>
+    </details>
+    ${campaignId === "google-review-growth-system" ? `
+      <div class="modal-inspiration">
+        <img src="assets/inspiration-review-card.png" alt="Premium QR review table card inspiration">
+        <div>
+          <span>What success looks like</span>
+          <strong>A discreet QR card that makes leaving a review effortless.</strong>
+          <p>Visible at the right moment, without pressuring the customer.</p>
+        </div>
+      </div>
+    ` : campaignId === "signature-reel-series" ? `
+      <div class="modal-inspiration">
+        <img src="assets/inspiration-cheese-pull.png" alt="Neapolitan pizza cheese pull reel inspiration">
+        <div>
+          <span>What success looks like</span>
+          <strong>One recognizable product moment with a clear visual payoff.</strong>
+          <p>Close framing and real preparation make the restaurant easy to remember.</p>
+        </div>
+      </div>
+    ` : campaignId === "weekend-family-menu" ? `
+      <div class="modal-inspiration">
+        <img src="assets/inspiration-family-menu.png" alt="Premium weekend family menu inspiration">
+        <div>
+          <span>What success looks like</span>
+          <strong>A complete shared experience, presented before price.</strong>
+          <p>The visual makes the family occasion easy to picture.</p>
+        </div>
+      </div>
+    ` : ""}
+    ${campaignId === "signature-reel-series" ? `
+      <div class="campaign-confirmation">
+        <div>
+          <span>${studioMissionReady ? "Studio mission ready" : "Ready for execution"}</span>
+          <strong>${studioMissionReady ? "The Cheese Pull Reel mission is ready for step-by-step filming." : "Confirm this campaign to create the Cheese Pull Reel mission in Studio."}</strong>
+        </div>
+        <button type="button" data-demo-action="${studioMissionReady ? "studio-prepare" : "confirm-studio-mission"}" data-campaign-id="${campaignId}">${studioMissionReady ? "Open Studio" : "Confirm & Open Studio"}</button>
+      </div>
+    ` : ""}
+  `);
+}
+
+function studioClipDefinitions() {
+  return [
+    {
+      purpose: "Hook",
+      instruction: "Film the pizza being lifted with a clear cheese stretch.",
+      duration: "2-3 seconds",
+      goal: "Create immediate attention.",
+    },
+    {
+      purpose: "Preparation",
+      instruction: "Show the pizza going into the oven from a steady side angle.",
+      duration: "2-3 seconds",
+      goal: "Show authenticity and craft.",
+    },
+    {
+      purpose: "Product close-up",
+      instruction: "Film the finished pizza near the strongest natural light.",
+      duration: "2 seconds",
+      goal: "Make the product desirable.",
+    },
+    {
+      purpose: "Atmosphere",
+      instruction: "Capture a table, warm restaurant mood, or natural customer moment.",
+      duration: "3 seconds",
+      goal: "Show the full dining experience.",
+    },
+    {
+      purpose: "Call to action",
+      instruction: "Film the entrance or a ready table with space for the final message.",
+      duration: "2 seconds",
+      goal: "Invite people to visit.",
+    },
+  ];
+}
+
+function studioValidation(index, status) {
+  const validations = {
+    approved: [
+      ["Strong hook.", "Good lighting.", "Clear food focus."],
+      ["Steady movement.", "The oven is easy to recognize.", "Craft feels authentic."],
+      ["Clear product detail.", "Good color and focus.", "The pizza looks desirable."],
+      ["Warm atmosphere.", "Stable framing.", "The experience feels natural."],
+      ["Clear location cue.", "Good space for the message.", "The ending feels intentional."],
+    ],
+    "needs-improvement": [
+      ["The movement is too fast.", "Film slower and move closer to the oven."],
+    ],
+    "retry-required": [
+      ["The product is too dark.", "Refilm near stronger light."],
+    ],
+  };
+  if (status === "needs-improvement") return validations["needs-improvement"][0];
+  if (status === "retry-required") return validations["retry-required"][0];
+  return validations.approved[index] || validations.approved[0];
+}
+
+function validateStudioClip(index) {
+  const state = stableState();
+  const mission = state.studioMission;
+  const clip = mission.clips[index];
+  if (!clip || clip.status === "approved") return;
+
+  clip.attempts = Number(clip.attempts || 0) + 1;
+  if (index === 1 && clip.attempts === 1) {
+    clip.status = "needs-improvement";
+  } else if (index === 2 && clip.attempts === 1) {
+    clip.status = "retry-required";
+  } else {
+    clip.status = "approved";
+  }
+
+  const nextIndex = mission.clips.findIndex((item) => item.status !== "approved");
+  mission.currentClip = nextIndex === -1 ? 4 : nextIndex;
+  mission.status = nextIndex === -1 ? "ready-to-assemble" : "filming";
+  saveDemoState();
+
+  if (clip.status === "approved") {
+    showDemoPanel(`Clip ${index + 1} approved`, studioValidation(index, "approved").join(" "));
+  } else {
+    showDemoPanel(
+      clip.status === "needs-improvement" ? `Clip ${index + 1} needs improvement` : `Clip ${index + 1} retry required`,
+      studioValidation(index, clip.status).join(" ")
+    );
+  }
+  setActivePage("studio", false);
+}
+
+function studioEscape(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function openStudioAssetEditor() {
+  const pkg = stableState().studioMission.package;
+  openDemoModal("Edit Publishing Assets", `
+    <form class="studio-assets-form" data-demo-form="studio-assets">
+      <label><span>Caption</span><textarea name="caption" rows="4">${studioEscape(pkg.caption)}</textarea></label>
+      <label><span>Call to action</span><input name="cta" type="text" value="${studioEscape(pkg.cta)}"></label>
+      <label><span>Hashtags</span><input name="hashtags" type="text" value="${studioEscape(pkg.hashtags)}"></label>
+      <button type="submit">Save Changes</button>
+    </form>
+  `);
+}
+
+function copyStudioCaption() {
+  const caption = stableState().studioMission.package.caption;
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(caption).catch(() => {});
+  }
+  showDemoPanel("Caption ready", "Caption copied when browser permissions allow. It is also visible in the content package.");
+}
+
+function downloadStudioChecklist() {
+  const mission = stableState().studioMission;
+  const clips = studioClipDefinitions();
+  const checklist = [
+    mission.name,
+    `Linked campaign: ${mission.linkedCampaign}`,
+    "",
+    ...clips.map((clip, index) => `${index + 1}. ${clip.purpose} - ${clip.instruction} (${clip.duration})`),
+    "",
+    `Caption: ${mission.package.caption}`,
+    `CTA: ${mission.package.cta}`,
+    `Posting time: ${mission.package.postingTime}`,
+  ].join("\n");
+
+  try {
+    if (typeof Blob !== "undefined" && typeof URL !== "undefined" && document.createElement) {
+      const url = URL.createObjectURL(new Blob([checklist], { type: "text/plain;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "solo-cheese-pull-reel-checklist.txt";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+    showDemoPanel("Checklist ready", "The filming checklist has been downloaded.");
+  } catch (error) {
+    showDemoPanel("Checklist ready", "Download is unavailable here, but the complete checklist remains visible in Studio.");
+  }
+}
+
+function openStableResultModal() {
+  openDemoModal("Add Result", `
+    <form class="demo-result-form" data-demo-form="add-result">
+      <label><span>New reviews</span><input name="reviews" type="number" min="0" value="0"></label>
+      <label><span>Views</span><input name="views" type="number" min="0" value="0"></label>
+      <label><span>Messages</span><input name="messages" type="number" min="0" value="0"></label>
+      <label><span>Reservations</span><input name="reservations" type="number" min="0" value="0"></label>
+      <label><span>New customers</span><input name="customers" type="number" min="0" value="0"></label>
+      <label><span>Revenue influenced</span><input name="revenue" type="number" min="0" value="0"></label>
+      <label class="demo-result-form__wide"><span>Notes</span><input name="notes" type="text" placeholder="Optional note"></label>
+      <button type="submit">Save Result</button>
+    </form>
+  `);
+}
+
+function openStableCalendarPanel(calendarId) {
+  const events = {
+    "staff-review-script": ["Staff review script", "Prepare the team to ask for reviews naturally", "Monday"],
+    "qr-review-card": ["QR review card setup", "Make reviews easy at the table", "Tuesday"],
+    "google-review-push": ["Google Review Push", "Strengthen social proof", "Wednesday"],
+    "weekend-family-menu": ["Weekend Family Menu", "Increase weekend revenue", "Friday"],
+    "signature-reel": ["Signature Reel", "Increase visibility", "Saturday"],
+    "results-check": ["Results check", "Review new reviews, customers and revenue", "Sunday"],
+  };
+  const event = events[calendarId] || events["google-review-push"];
+  openDemoModal(event[0], `
+    <div class="demo-plan-stack">
+      <article><span>Date</span><strong>${event[2]}</strong></article>
+      <article><span>Purpose</span><strong>${event[1]}</strong></article>
+    </div>
+  `);
+}
+
+function inspirationCard(image, category, title, outcome, why, buttonLabel, action, data = "") {
+  return `
+    <article class="inspiration-card">
+      <img src="${image}" alt="${title} inspiration">
+      <div class="inspiration-card__body">
+        <span>${category}</span>
+        <h3>${title}</h3>
+        <p>${why}</p>
+        <small>${outcome}</small>
+        <button type="button" data-demo-action="${action}"${data}>${buttonLabel}</button>
+      </div>
+    </article>
+  `;
+}
+
+function operatingMetric(label, value, note = "") {
+  return `
+    <div class="operating-metric">
+      <span>${label}</span>
+      <strong>${value}</strong>
+      ${note ? `<small>${note}</small>` : ""}
+    </div>
+  `;
+}
+
+function operatingChange(value, label, note = "") {
+  return `
+    <div class="operating-change">
+      <strong>${value}</strong>
+      <span>${label}</span>
+      ${note ? `<small>${note}</small>` : ""}
+    </div>
+  `;
+}
+
+function operatingBlocker(title, detail, impact, campaignId) {
+  return `
+    <div class="operating-blocker">
+      <div>
+        <strong>${title}</strong>
+        <p>${detail}</p>
+        <small>${impact}</small>
+      </div>
+      <button type="button" class="button-secondary" data-demo-action="campaign-detail" data-campaign-id="${campaignId}">Fix</button>
+    </div>
+  `;
+}
+
+function operatingLoopRow(label, value, note = "") {
+  return `
+    <div class="operating-loop-row">
+      <span>${label}</span>
+      <strong>${value}</strong>
+      ${note ? `<small>${note}</small>` : ""}
+    </div>
+  `;
+}
+
+function getNestedValue(source, path) {
+  return path.split(".").reduce((current, key) => current?.[key], source);
+}
+
+function setNestedValue(source, path, value) {
+  const keys = path.split(".");
+  const last = keys.pop();
+  const target = keys.reduce((current, key) => {
+    if (!current[key] || typeof current[key] !== "object") current[key] = {};
+    return current[key];
+  }, source);
+  target[last] = value;
+}
+
+function biField(path, placeholder = "", type = "text") {
+  const profile = stableState().businessIntelligenceProfile;
+  const value = getNestedValue(profile, path) ?? "";
+  const safeValue = studioEscape(String(value));
+  const safePath = studioEscape(path);
+  const safePlaceholder = studioEscape(placeholder);
+  if (type === "textarea") {
+    return `<textarea data-bi-field="${safePath}" placeholder="${safePlaceholder}">${safeValue}</textarea>`;
+  }
+  const numberAttrs = type === "number" ? ' inputmode="decimal" step="any"' : "";
+  return `<input data-bi-field="${safePath}" type="${studioEscape(type)}" value="${safeValue}" placeholder="${safePlaceholder}"${numberAttrs} />`;
+}
+
+function biSelect(path, options = []) {
+  const profile = stableState().businessIntelligenceProfile;
+  const value = String(getNestedValue(profile, path) ?? "");
+  const safePath = studioEscape(path);
+  const visibleOptions = value && !options.includes(value) ? [value, ...options] : options;
+  return `
+    <select data-bi-field="${safePath}">
+      <option value="">Skip for now</option>
+      ${visibleOptions.map((option) => `<option value="${studioEscape(option)}" ${option === value ? "selected" : ""}>${studioEscape(option)}</option>`).join("")}
+    </select>
+  `;
+}
+
+function biSection(title, purpose, fields) {
+  return `
+    <section class="bi-section">
+      <div class="bi-section__intro">
+        <span>${title}</span>
+        <p>${purpose}</p>
+      </div>
+      <div class="bi-field-grid">${fields.join("")}</div>
+    </section>
+  `;
+}
+
+function biControl(label, control, hint = "Skip if unknown") {
+  return `
+    <label class="bi-field">
+      <span>${label}</span>
+      ${control}
+      <small>${hint}</small>
+    </label>
+  `;
+}
+
+function buildBusinessIntelligenceMemory(profile = stableState().businessIntelligenceProfile) {
+  return {
+    memory_type: "business_intelligence_profile",
+    version: profile.version || "1.0",
+    updated_at: profile.updatedAt || new Date().toISOString(),
+    business_context: profile.identity,
+    decision_objectives: profile.goals,
+    promotion_inputs: profile.products,
+    customer_understanding: profile.customers,
+    marketing_maturity: profile.marketing,
+    execution_capacity: profile.resources,
+    business_health_baseline: profile.performance,
+    positioning_context: profile.competition,
+    contextual_opportunities_and_constraints: profile.context,
+    consultant_observations: profile.observations,
+  };
+}
+
+function growthAreaDefinitions() {
+  return {
+    customers: {
+      id: "customers",
+      title: "Get More Customers",
+      purpose: "Increase acquisition and visibility.",
+      examples: ["Instagram reels", "Google visibility", "Local awareness", "Offers", "Referrals"],
+      icon: "M3 17l6-6 4 4 8-9m-5 0h5v5",
+      diagnosis: "Strong customer experience, but visibility does not yet match the quality of the restaurant.",
+      recommendation: "Signature Reel Series",
+      why: "Food preparation and atmosphere provide the clearest path to more local discovery.",
+      impact: "Up to 15k views and approximately 4 reservations per month.",
+      campaign: "Signature Reel Series",
+      campaignId: "signature-reel-series",
+      commitment: "15 minutes per reel",
+      steps: ["Confirm the visual angle", "Create the Studio mission", "Film five guided clips", "Publish", "Track reservations"],
+    },
+    reputation: {
+      id: "reputation",
+      title: "Improve Reputation",
+      purpose: "Increase trust and social proof.",
+      examples: ["Google reviews", "Testimonials", "Customer stories", "Brand image"],
+      icon: "m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2L5.8 22 7 15.2 2 10.3l6.9-1L12 2Z",
+      diagnosis: "Customer satisfaction is strong, but review acquisition remains below the restaurant's potential.",
+      recommendation: "Google Review Growth System",
+      why: "This is the highest-return trust opportunity with the lowest operational effort.",
+      impact: "+5 reviews per week toward 500 reviews.",
+      campaign: "Google Review Growth System",
+      campaignId: "google-review-growth-system",
+      commitment: "5 minutes daily",
+      steps: ["Print QR cards", "Train staff", "Use the review message", "Track reviews", "Review weekly pace"],
+    },
+    retention: {
+      id: "retention",
+      title: "Bring Customers Back",
+      purpose: "Increase retention and repeat visits.",
+      examples: ["WhatsApp VIP", "Loyalty campaigns", "Birthday offers", "Repeat visits"],
+      icon: "M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7",
+      diagnosis: "Customer relationships currently end after the visit, leaving repeat demand unowned.",
+      recommendation: "WhatsApp VIP Customer Loop",
+      why: "WhatsApp matches local customer behavior and creates a practical permission-based relationship.",
+      impact: "More repeat visits and a customer community the restaurant can reach directly.",
+      campaign: "WhatsApp VIP List",
+      campaignId: "whatsapp-vip-list",
+      commitment: "One useful update per week",
+      steps: ["Prepare opt-in language", "Create customer labels", "Invite interested guests", "Send one useful update", "Track returning visits"],
+    },
+    revenue: {
+      id: "revenue",
+      title: "Increase Revenue",
+      purpose: "Increase average basket and sales.",
+      examples: ["Bundles", "Menus", "Upsells", "Seasonal offers"],
+      icon: "M12 2v20m5-16H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H6",
+      diagnosis: "The restaurant has strong products, but the full shared-meal value is not consistently packaged.",
+      recommendation: "Weekend Family Menu",
+      why: "Families and groups naturally fit the product, making a complete menu easier to choose and more valuable.",
+      impact: "Higher average ticket and approximately 1,200-3,000 MAD additional weekend influence.",
+      campaign: "Weekend Family Menu",
+      campaignId: "weekend-family-menu",
+      commitment: "One weekend setup",
+      steps: ["Define the menu", "Set the value clearly", "Prepare one visual", "Mention it before Friday", "Track menu sales"],
+    },
+    quietDays: {
+      id: "quietDays",
+      title: "Fill Quiet Days",
+      purpose: "Improve traffic on weak days.",
+      examples: ["Tuesday offers", "Football nights", "Lunch menus", "Events"],
+      icon: "M8 2v3m8-3v3M4 9h16M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z",
+      diagnosis: "Demand is concentrated on weekends, while weekday capacity remains underused.",
+      recommendation: "Tuesday Neighbourhood Menu",
+      why: "A simple weekday reason to visit can balance demand without weakening the premium position.",
+      impact: "More weekday visits and better use of existing capacity.",
+      campaign: "Weekend Family Menu",
+      campaignId: "weekend-family-menu",
+      commitment: "One recurring weekday action",
+      steps: ["Choose the weak day", "Define the reason to visit", "Prepare one message", "Run for three weeks", "Compare traffic"],
+    },
+    community: {
+      id: "community",
+      title: "Build Community",
+      purpose: "Create loyal followers and advocates.",
+      examples: ["Stories", "UGC", "WhatsApp", "Referrals"],
+      icon: "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z",
+      diagnosis: "Customers already share restaurant moments, but that participation is not yet a repeatable system.",
+      recommendation: "Story Mention System",
+      why: "Customer stories turn real visits into trusted community proof without requiring heavy production.",
+      impact: "Up to 20 story mentions per month and stronger organic trust.",
+      campaign: "Story Mention System",
+      campaignId: "story-mention-system",
+      commitment: "Light weekly follow-up",
+      steps: ["Encourage natural tags", "Repost the best moments", "Create a customer highlight", "Thank participants", "Track mentions"],
+    },
+  };
+}
+
+function openGrowthAreaFlow(areaId, stage = "recommendation") {
+  const area = growthAreaDefinitions()[areaId] || growthAreaDefinitions().customers;
+  if (stage === "plan") {
+    openDemoModal(area.campaign, `
+      <div class="growth-flow-rail">
+        <span class="is-complete">Growth Area</span><span class="is-complete">Diagnosis</span><span class="is-complete">Recommendation</span><span class="is-current">Plan</span><span>Campaign</span><span>Results</span>
+      </div>
+      <div class="growth-flow-plan">
+        <div><span>Objective</span><strong>${area.purpose}</strong></div>
+        <div><span>Expected impact</span><strong>${area.impact}</strong></div>
+        <div><span>Commitment</span><strong>${area.commitment}</strong></div>
+      </div>
+      <div class="growth-flow-steps">
+        ${area.steps.map((step, index) => `<div><span>${index + 1}</span><strong>${step}</strong></div>`).join("")}
+      </div>
+      <div class="growth-flow-actions">
+        <button type="button" data-demo-action="growth-create-campaign" data-growth-area="${area.id}">Create Campaign</button>
+      </div>
+    `);
+    return;
+  }
+
+  openDemoModal(area.title, `
+    <div class="growth-flow-rail">
+      <span class="is-complete">Growth Area</span><span class="is-current">Diagnosis</span><span>Recommendation</span><span>Plan</span><span>Campaign</span><span>Results</span>
+    </div>
+    <div class="growth-flow-diagnosis">
+      <span>What SOLO sees</span>
+      <strong>${area.diagnosis}</strong>
+    </div>
+    <div class="growth-flow-recommendation">
+      <span>Highest return recommendation</span>
+      <h3>${area.recommendation}</h3>
+      <p>${area.why}</p>
+      <div><span>Expected impact</span><strong>${area.impact}</strong></div>
+      <div><span>Time required</span><strong>${area.commitment}</strong></div>
+    </div>
+    <div class="growth-flow-actions">
+      <button type="button" data-demo-action="growth-view-plan" data-growth-area="${area.id}">View Plan</button>
+    </div>
+  `);
+}
+
+function renderTodayPage() {
+  const state = stableState();
+  const health = calculateBusinessHealth(state);
+  const recommendation = homeRecommendation(state);
+  const mission = missionForCampaign(state.studioMission?.activeCampaignId || recommendation.campaignId, state.studioMission);
+  const missionApproved = Array.isArray(mission.clips) ? mission.clips.filter((clip) => clip.status === "approved").length : 0;
+  const missionProgress = Math.max(Math.min((Number(state.weeklyCompleted || 2) / 5) * 100, 100), Math.min((missionApproved / 5) * 100, 100));
+  const reviewProgress = Math.min((Number(state.reviews || 334) / 500) * 100, 100);
+  const weekendRevenue = Number(state.revenue || 31400) > 0 ? "3 200 MAD" : "À suivre";
+  pageTitle.textContent = `SOLO · ${frenchTodayDate()}`;
+
+  contentStage.innerHTML = `
+    <div class="solo-home-page">
+      <header class="solo-home-heading">
+        <p>Bonjour Hiba</p>
+        <h2>Voici ce qu'il faut faire aujourd'hui.</h2>
+      </header>
+
+      <section class="business-health-card business-health-card--compact" aria-label="Santé du commerce">
+        <div class="health-score-ring" data-health-circle style="--health-color:${health.color}; --health-progress:${health.score * 3.6}deg">
+          <strong data-health-score="${health.score}">${health.score}</strong>
+          <span>/100</span>
+        </div>
+        <div class="health-status-copy">
+          <span style="color:${health.color}">${health.status}</span>
+          <p>${health.explanation}</p>
+        </div>
+        <div class="health-signal-list" aria-label="Signaux à surveiller">
+          ${health.lowestSignals.map((signal) => `
+            <span>${signal.label} <strong>${signal.value}</strong></span>
+          `).join("")}
+        </div>
+      </section>
+
+      ${state.harvestRecalculating ? `
+        <section class="harvest-recalculation-card" aria-live="polite">
+          <span>Harvest recalcule</span>
+          <h3>Harvest is recalculating your business...</h3>
+          <p>Les derniers progrès sont pris en compte pour préparer la prochaine recommandation.</p>
+          <div class="recalculation-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+        </section>
+      ` : `
+      <section class="best-next-move-card best-next-move-card--intelligent">
+        <div class="best-next-move-copy">
+          <div class="recommendation-title-row">
+            <span>${recommendation.eyebrow}</span>
+            <strong>${recommendation.confidence} confiance</strong>
+          </div>
+          <h3>${recommendation.title}</h3>
+          <p>${recommendation.why}</p>
+          <div class="why-recommendation">
+            <span>Pourquoi Harvest recommande ceci</span>
+            <ul>
+              ${recommendation.bullets.map((item) => `<li>${item}</li>`).join("")}
+            </ul>
+          </div>
+          <div class="decision-based-on">
+            <span>Décision basée sur</span>
+            <div>${recommendation.basedOn.map((item) => `<strong>${item}</strong>`).join("")}</div>
+          </div>
+        </div>
+        <div class="best-next-move-footer">
+          <div class="move-badges">
+            <span>${recommendation.opportunity}</span>
+            <span>${recommendation.impact}</span>
+            <span>${recommendation.duration}</span>
+          </div>
+          <button type="button" data-demo-action="home-best-move" data-target-page="${recommendation.targetPage}" data-campaign-id="${recommendation.campaignId}">
+            ${recommendation.cta}
+          </button>
+        </div>
+      </section>
+      `}
+
+      <section class="home-mini-grid" aria-label="Résumé">
+        <article class="home-mini-card">
+          <div>
+            <span>Mission actuelle</span>
+            <h3>${mission.name}</h3>
+            <p>${mission.objective}</p>
+          </div>
+          <div class="home-progress-row">
+            <strong>${state.weeklyCompleted || 2} / 5 étapes</strong>
+            <div class="today-progress-track"><span style="width:${missionProgress}%"></span></div>
+          </div>
+          <button type="button" class="home-text-link" data-demo-action="campaign-to-studio" data-campaign-id="${mission.activeCampaignId || recommendation.campaignId}">Continuer →</button>
+        </article>
+
+        <article class="home-mini-card">
+          <div>
+            <span>Opportunité du week-end</span>
+            <h3>Menu famille du week-end</h3>
+            <p>Mettre en avant une offre simple avant vendredi.</p>
+          </div>
+          <div class="home-progress-row">
+            <strong>${weekendRevenue}</strong>
+            <small>résultat estimé la semaine dernière</small>
+          </div>
+          <button type="button" class="home-text-link" data-demo-action="campaign-detail" data-campaign-id="weekend-family-menu">Voir →</button>
+        </article>
+      </section>
+
+      <section class="recent-wins-card">
+        <span>VICTOIRES RÉCENTES</span>
+        <div class="recent-wins-list">
+          <div>
+            <i aria-hidden="true"></i>
+            <strong>+1 avis Google</strong>
+            <small>Aujourd'hui</small>
+            <em>Confiance</em>
+          </div>
+          <div>
+            <i aria-hidden="true"></i>
+            <strong>+2 clients revenus</strong>
+            <small>Hier</small>
+            <em>Revenus</em>
+          </div>
+          <div>
+            <i aria-hidden="true"></i>
+            <strong>Preuve sociale renforcée</strong>
+            <small>Cette semaine</small>
+            <em>Visibilité</em>
+          </div>
+        </div>
+      </section>
+    </div>
+  `;
+
+  animateBusinessHealthScore();
+}
+
+function renderFocusedCampaignsPage() {
+  const state = stableState();
+  const reviewsGained = Math.max(Number(state.reviews || 334) - 317, 17);
+  const progress = Math.min((reviewsGained / 166) * 100, 100);
+  const studioApproved = state.studioMission.clips.filter((clip) => clip.status === "approved").length;
+  const createdArea = state.activeGrowthArea ? growthAreaDefinitions()[state.activeGrowthArea] : null;
+  const createdLoop = createdArea && !["customers", "reputation"].includes(createdArea.id) ? `
+    <article class="growth-loop is-active">
+      <div class="growth-loop__identity"><span>ACTIVE</span><h3>${createdArea.campaign}</h3><p>Goal: ${createdArea.purpose.toLowerCase()}</p></div>
+      <div class="growth-loop__progress">
+        <div><span>Status</span><strong>Ready to begin</strong><small>Created from Growth Hub</small></div>
+        <div class="today-progress-track"><span style="width: 0%"></span></div>
+      </div>
+      <div class="growth-loop__facts">
+        ${operatingLoopRow("Expected result", createdArea.impact, "Outcome selected on Home")}
+        ${operatingLoopRow("Actual results", "Not started", "Results appear after execution")}
+        ${operatingLoopRow("Problem", createdArea.diagnosis, "Diagnosis confirmed")}
+        ${operatingLoopRow("Next action", createdArea.steps[0], createdArea.commitment)}
+      </div>
+      <button type="button" data-demo-action="campaign-to-studio" data-campaign-id="${createdArea.campaignId}">Continue</button>
+    </article>
+  ` : "";
+  contentStage.innerHTML = `
+    <div class="growth-os-page campaigns-os-page">
+      <header class="growth-os-header">
+        <p class="section-label">Growth Loops</p>
+        <h2>Work that compounds.</h2>
+        <p>Every loop connects an objective to actual results and one next action.</p>
+      </header>
+
+      <section class="loop-group">
+        <div class="loop-group__heading"><span>Active</span><strong>2 loops moving</strong></div>
+        <article class="growth-loop is-active">
+          <div class="growth-loop__identity"><span>ACTIVE</span><h3>Google Review Growth System</h3><p>Goal: reach 500 reviews and strengthen customer trust.</p></div>
+          <div class="growth-loop__progress">
+            <div><span>Progress</span><strong>${reviewsGained} / 166 reviews gained</strong><small>${Math.round(progress)}% of objective</small></div>
+            <div class="today-progress-track"><span style="width:${progress}%"></span></div>
+          </div>
+          <div class="growth-loop__facts">
+            ${operatingLoopRow("Actual results", "+17 reviews", "+7 customers mentioning Google")}
+            ${operatingLoopRow("Revenue influence", "3,200 MAD", "Estimated from customer mentions")}
+            ${operatingLoopRow("Problem", "Requests inconsistent", "Staff habit not yet stable")}
+            ${operatingLoopRow("Next action", "Train staff", "10 minutes")}
+          </div>
+          <button type="button" data-demo-action="campaign-to-studio" data-campaign-id="google-review-growth-system">Continue</button>
+        </article>
+
+        <article class="growth-loop is-active">
+          <div class="growth-loop__identity"><span>ACTIVE</span><h3>Signature Reel Series</h3><p>Goal: turn strong food visuals into customer discovery.</p></div>
+          <div class="growth-loop__progress">
+            <div><span>Mission progress</span><strong>${studioApproved} / 5 clips approved</strong><small>${state.studioMission.status.replaceAll("-", " ")}</small></div>
+            <div class="today-progress-track"><span style="width:${(studioApproved / 5) * 100}%"></span></div>
+          </div>
+          <div class="growth-loop__facts">
+            ${operatingLoopRow("Expected result", "15k potential views", "4 reservations/month")}
+            ${operatingLoopRow("Actual results", state.studioMission.published ? "Published" : "Not published yet", state.studioMission.published ? "Waiting for results" : "Execution in Studio")}
+            ${operatingLoopRow("Problem", studioApproved ? "Complete remaining clips" : "Filming not started", "Approved clips remain locked")}
+            ${operatingLoopRow("Next action", state.studioMission.status === "ready" ? "Start filming" : "Continue mission", "15 minutes")}
+          </div>
+          <button type="button" data-demo-action="campaign-to-studio" data-campaign-id="signature-reel-series">Continue</button>
+        </article>
+        ${createdLoop}
+      </section>
+
+      <section class="loop-group">
+        <div class="loop-group__heading"><span>Planned</span><strong>Next systems</strong></div>
+        <div class="planned-loop-list">
+          <div><strong>WhatsApp Customer Loop</strong><span>Goal: build customer ownership</span><small>Expected: stronger repeat visits · Weekly effort</small><button type="button" class="button-secondary" data-demo-action="campaign-detail" data-campaign-id="whatsapp-vip-list">See Details</button></div>
+          <div><strong>Weekend Family Menu</strong><span>Goal: increase group revenue</span><small>Expected: higher average ticket · Weekend execution</small><button type="button" class="button-secondary" data-demo-action="campaign-detail" data-campaign-id="weekend-family-menu">See Details</button></div>
+          <div><strong>Story Mention System</strong><span>Goal: grow community proof</span><small>Expected: 20 mentions/month · Light effort</small><button type="button" class="button-secondary" data-demo-action="campaign-detail" data-campaign-id="story-mention-system">See Details</button></div>
+        </div>
+      </section>
+
+      <section class="loop-group completed-loop-group">
+        <div class="loop-group__heading"><span>Completed</span><strong>Results remain visible here</strong></div>
+        <p>No completed loops yet. A loop moves here when its objective is achieved, with impact and learning preserved.</p>
+      </section>
+    </div>
+  `;
+}
+
+function renderFocusedCustomersPage() {
+  const state = stableState();
+  contentStage.innerHTML = `
+    <div class="growth-os-page customers-os-page">
+      <header class="growth-os-header">
+        <p class="section-label">Relationship System</p>
+        <h2>Customers, not contacts.</h2>
+        <p>See whether people are arriving, returning, reviewing, and staying connected.</p>
+      </header>
+      <section class="relationship-system">
+        <div class="relationship-row"><span>New customers</span><strong>${state.customers}</strong><p>Monthly count · growing</p><small>Next action: keep acquisition loops active</small></div>
+        <div class="relationship-row"><span>Returning customers</span><strong>4 this month</strong><p>Early signal · needs consistent tracking</p><small>Next action: build the WhatsApp relationship loop</small></div>
+        <div class="relationship-row"><span>Google reviews</span><strong>${state.reviews} / 500</strong><p>+17 since the loop began</p><small>Next action: maintain +5 reviews/week</small></div>
+        <div class="relationship-row"><span>WhatsApp community</span><strong>0 members</strong><p>Customer ownership has not started</p><small>Next action: permission-based opt-in system</small></div>
+        <div class="relationship-row"><span>Repeat visits</span><strong>Needs tracking</strong><p>No reliable visit frequency yet</p><small>Next action: record returning customers weekly</small></div>
+      </section>
+      <section class="relationship-activity">
+        <div class="system-lane__label"><span>Recent</span><strong>Customer movement</strong></div>
+        <div class="relationship-activity__list">
+          <div><time>Today</time><strong>New Google review received</strong><span>Trust loop</span></div>
+          <div><time>Yesterday</time><strong>2 returning customers visited</strong><span>Relationship signal</span></div>
+          <div><time>This week</time><strong>Customer story mention reposted</strong><span>Community proof</span></div>
+          <div><time>This week</time><strong>7 customers mentioned Google</strong><span>Acquisition evidence</span></div>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderFocusedStudioPage() {
+  const state = stableState();
+  const activeCampaignId = routeContext.campaignId || state.studioMission.activeCampaignId || "signature-reel-series";
+  if (activeCampaignId && state.studioMission.activeCampaignId !== activeCampaignId) {
+    state.studioMission = missionForCampaign(activeCampaignId, state.studioMission);
+    state.studioMission.created = true;
+    saveDemoState();
+  }
+  const mission = state.studioMission;
+  const definitions = studioClipDefinitions();
+  const approvedCount = mission.clips.filter((clip) => clip.status === "approved").length;
+  const progress = (approvedCount / mission.clips.length) * 100;
+  const currentIndex = Math.min(Number(mission.currentClip || 0), definitions.length - 1);
+  const allApproved = approvedCount === definitions.length;
+  const packageReady = ["assembly", "published"].includes(mission.status);
+  const statusLabel = mission.published
+    ? "Published"
+    : packageReady
+      ? "Ready to publish"
+      : allApproved
+        ? "Ready to assemble"
+        : mission.status === "filming"
+          ? "Filming in progress"
+          : "Ready to film";
+
+  const clipCards = definitions.map((definition, index) => {
+    const clip = mission.clips[index];
+    const isCurrent = index === currentIndex && clip.status !== "approved";
+    const statusClass = clip.status.replaceAll("-", "_");
+    const statusText = clip.status === "approved"
+      ? "Approved"
+      : clip.status === "needs-improvement"
+        ? "Needs Improvement"
+        : clip.status === "retry-required"
+          ? "Retry Required"
+          : isCurrent
+            ? "Ready to film"
+            : "Waiting";
+    const feedback = clip.status === "pending" ? [] : studioValidation(index, clip.status);
+    const action = clip.status === "needs-improvement" || clip.status === "retry-required"
+      ? `<button type="button" data-demo-action="studio-retry" data-clip-index="${index}">Retry Clip ${index + 1}</button>`
+      : clip.status === "pending" && isCurrent
+        ? `<button type="button" data-demo-action="studio-upload" data-clip-index="${index}">Upload Clip</button>`
+        : "";
+
+    return `
+      <article class="studio-clip-card ${isCurrent ? "is-current" : ""} is-${statusClass}">
+        <div class="studio-clip-number">${clip.status === "approved" ? "✓" : index + 1}</div>
+        <div class="studio-clip-content">
+          <div class="studio-clip-heading">
+            <div><span>Clip ${index + 1}</span><h3>${definition.purpose}</h3></div>
+            <strong class="studio-status">${statusText}</strong>
+          </div>
+          <p>${definition.instruction}</p>
+          <dl>
+            <div><dt>Duration</dt><dd>${definition.duration}</dd></div>
+            <div><dt>Goal</dt><dd>${definition.goal}</dd></div>
+          </dl>
+          ${feedback.length ? `
+            <div class="studio-validation">
+              ${feedback.map((item) => `<span>${item}</span>`).join("")}
+            </div>
+          ` : ""}
+        </div>
+        ${action}
+      </article>
+    `;
+  }).join("");
+
+  const orderedClips = mission.clipOrder.map((index, orderIndex) => {
+    const definition = definitions[index];
+    return `<span><small>${orderIndex + 1}</small>${definition.purpose}</span>`;
+  }).join("");
+
+  contentStage.innerHTML = `
+    <div class="studio-mission-page">
+      <section class="studio-mission-hero">
+        <div class="studio-mission-copy">
+          <p class="section-label">Active Studio Mission</p>
+          <span class="studio-mission-status">${statusLabel}</span>
+          <h2>${mission.name}</h2>
+          <p>SOLO guides one clip at a time. Approved clips stay locked while weak clips are refilmed individually.</p>
+        </div>
+        <img src="assets/inspiration-cheese-pull.png" alt="Cheese pull reel visual reference">
+      </section>
+
+      <section class="studio-mission-summary">
+        <div><span>Linked Campaign</span><strong>${mission.linkedCampaign}</strong></div>
+        <div><span>Objective</span><strong>${mission.objective}</strong></div>
+        <div><span>Expected Outcome</span><strong>${mission.expectedOutcome}</strong></div>
+        <div><span>Platform</span><strong>${mission.platform}</strong></div>
+        <div class="studio-required-assets"><span>Required Assets</span><strong>${mission.requiredAssets.join(" · ")}</strong></div>
+      </section>
+
+      <section class="studio-progress-section">
+        <div class="studio-progress-heading">
+          <div><p class="section-label">Mission Progress</p><h3>${approvedCount} / 5 clips approved</h3></div>
+          <strong>${Math.round(progress)}%</strong>
+        </div>
+        <div class="today-progress-track"><span style="width: ${progress}%"></span></div>
+        <div class="studio-stage-track" aria-label="Mission stages">
+          <span class="${mission.status !== "ready" ? "is-complete" : "is-current"}">Plan</span>
+          <span class="${approvedCount > 0 ? (allApproved ? "is-complete" : "is-current") : ""}">Film</span>
+          <span class="${allApproved ? (packageReady ? "is-complete" : "is-current") : ""}">Assemble</span>
+          <span class="${mission.published ? "is-complete" : packageReady ? "is-current" : ""}">Publish</span>
+        </div>
+      </section>
+
+      ${mission.status === "ready" ? `
+        <section class="studio-next-action">
+          <div><span>Ready to begin</span><h3>Film five short clips in about 15 minutes.</h3><p>You will receive guidance and mock validation after each upload.</p></div>
+          <div class="studio-package-actions">
+            <button type="button" data-demo-action="studio-start">Start Filming</button>
+            <button type="button" data-demo-action="studio-open-package" data-campaign-id="${activeCampaignId}">Create Content Package</button>
+          </div>
+        </section>
+      ` : !packageReady ? `
+        <section class="studio-clips-section">
+          <div class="section-heading"><div><p class="section-label">Filming Steps</p><h3>${allApproved ? "All clips approved" : `Film Clip ${currentIndex + 1} next`}</h3></div></div>
+          <div class="studio-validation-criteria"><span>Mock validation checks</span><strong>Lighting</strong><strong>Framing</strong><strong>Stability</strong><strong>Clarity</strong><strong>Energy</strong><strong>Brand Fit</strong><strong>Objective Fit</strong></div>
+          <div class="studio-clip-list">${clipCards}</div>
+          ${allApproved ? `
+            <div class="studio-next-action">
+              <div><span>Filming complete</span><h3>SOLO can now prepare the final content package.</h3><p>Your approved clips remain locked and ready.</p></div>
+              <button type="button" data-demo-action="studio-open-package" data-campaign-id="${activeCampaignId}">Create Content Package</button>
+            </div>
+          ` : ""}
+        </section>
+      ` : `
+        <section class="studio-package-section">
+          <div class="section-heading"><div><p class="section-label">Final Content Package</p><h3>Ready for publishing</h3></div></div>
+          <div class="studio-package-grid">
+            <article class="studio-order-card">
+              <span>Recommended Clip Order</span>
+              <div class="studio-order-list">${orderedClips}</div>
+              <button type="button" class="button-secondary" data-demo-action="studio-adjust-order">Adjust Order</button>
+            </article>
+            <article class="studio-copy-card">
+              <span>Hook</span><strong>${studioEscape(mission.package.hook)}</strong>
+              <span>Caption</span><p>${studioEscape(mission.package.caption)}</p>
+              <span>Hashtags</span><p>${studioEscape(mission.package.hashtags)}</p>
+              <span>Call To Action</span><strong>${studioEscape(mission.package.cta)}</strong>
+            </article>
+            <article class="studio-publish-details">
+              <div><span>Posting Time</span><strong>${studioEscape(mission.package.postingTime)}</strong></div>
+              <div><span>Music Style</span><strong>${studioEscape(mission.package.musicStyle)}</strong></div>
+              <div><span>Thumbnail</span><strong>${studioEscape(mission.package.thumbnail)}</strong></div>
+            </article>
+          </div>
+          <div class="studio-package-actions">
+            <button type="button" data-demo-action="studio-edit-assets">Edit Assets</button>
+            <button type="button" class="button-secondary" data-demo-action="studio-copy-caption">Copy Caption</button>
+            <button type="button" class="button-secondary" data-demo-action="studio-download-checklist">Download Checklist</button>
+          </div>
+          <details class="studio-replace-details">
+            <summary>Replace one approved clip</summary>
+            <div>${definitions.map((definition, index) => `<button type="button" class="button-secondary" data-demo-action="studio-replace-clip" data-clip-index="${index}">Replace Clip ${index + 1} · ${definition.purpose}</button>`).join("")}</div>
+          </details>
+        </section>
+
+        <section class="studio-publishing-section">
+          ${mission.published ? `
+            <div class="studio-published-state">
+              <span>✓ Published</span>
+              <h3>Cheese Pull Reel is ready for results.</h3>
+              <p>Add views, messages, reservations, customers, and revenue when they arrive.</p>
+              <button type="button" data-demo-action="studio-track-results">Track Results</button>
+            </div>
+          ` : `
+            <div>
+              <p class="section-label">Publishing</p>
+              <h3>Upload manually for now.</h3>
+              <p>Publishing integration is coming soon. Copy the assets, upload to Instagram, then mark the reel as published.</p>
+            </div>
+            <button type="button" data-demo-action="studio-publish">Mark As Published</button>
+          `}
+        </section>
+      `}
+    </div>
+  `;
+}
+
+function renderFocusedResultsPage() {
+  const state = stableState();
+  const highlightedCampaignId = routeContext.campaignId || state.studioMission.activeCampaignId || "";
+  const savedResults = state.results.slice(-4).reverse();
+  const savedTimeline = savedResults.map((result, index) => `
+    <div class="result-timeline-item">
+      <div class="result-timeline-marker"></div>
+      <time>Saved update ${savedResults.length - index}</time>
+      <div>
+        <strong>${result.reviews ? `+${result.reviews} reviews` : result.customers ? `+${result.customers} customers` : "Results updated"}</strong>
+        <p>${Number(result.views || 0).toLocaleString()} views · ${Number(result.messages || 0).toLocaleString()} messages · ${Number(result.reservations || 0).toLocaleString()} reservations</p>
+        <small>${Number(result.revenue || 0).toLocaleString()} MAD influenced${result.notes ? ` · ${result.notes}` : ""}</small>
+      </div>
+    </div>
+  `).join("");
+
+  contentStage.innerHTML = `
+    <div class="growth-os-page results-os-page">
+      <header class="growth-os-header has-action">
+        <div><p class="section-label">Results Story</p><h2>Growth, week by week.</h2><p>Results are shown as movement over time, not a wall of analytics.</p></div>
+        <button type="button" data-demo-action="add-result">Add Result</button>
+      </header>
+
+      <section class="result-summary-line">
+        ${operatingMetric("Revenue influenced", `${Number(state.revenue || 0).toLocaleString()} MAD`, "Across active loops")}
+        ${operatingMetric("Customers", `${state.customers}`, "Monthly total")}
+        ${operatingMetric("Reviews", `${state.reviews}`, "Goal: 500")}
+        ${operatingMetric("Returning", "4", "This month")}
+      </section>
+
+      <section class="results-timeline">
+        <div class="loop-group__heading"><span>Timeline</span><strong>What changed</strong></div>
+        <div class="results-timeline__body">
+          <div class="result-timeline-item">
+            <div class="result-timeline-marker"></div>
+            <time>Week 1</time>
+            <div><strong>+4 Google reviews</strong><p>Review request system started.</p><small>Trust began moving.</small></div>
+          </div>
+          <div class="result-timeline-item">
+            <div class="result-timeline-marker"></div>
+            <time>Week 2</time>
+            <div><strong>+7 Google reviews</strong><p>QR cards added to the customer journey.</p><small>Review pace improved.</small></div>
+          </div>
+          <div class="result-timeline-item">
+            <div class="result-timeline-marker"></div>
+            <time>Week 3</time>
+            <div><strong>+3 returning customers</strong><p>Early relationship signal appeared.</p><small>Retention tracking started.</small></div>
+          </div>
+          <div class="result-timeline-item">
+            <div class="result-timeline-marker"></div>
+            <time>Week 4</time>
+            <div><strong>Weekend menu · +1,200 MAD</strong><p>Three family menus sold.</p><small>Revenue loop validated.</small></div>
+          </div>
+          ${savedTimeline}
+        </div>
+      </section>
+
+      <section class="campaign-result-story">
+        <div class="loop-group__heading"><span>By Loop</span><strong>Cause and effect</strong></div>
+        <div class="campaign-result-line ${highlightedCampaignId === "google-review-growth-system" ? "is-highlighted" : ""}" data-campaign-result="google-review-growth-system"><span>Google Review Growth System</span><strong>+17 reviews</strong><p>+7 customers mentioning Google</p><small>Next: stabilize staff requests</small></div>
+        <div class="campaign-result-line ${highlightedCampaignId === "weekend-family-menu" ? "is-highlighted" : ""}" data-campaign-result="weekend-family-menu"><span>Weekend Family Menu</span><strong>+1,200 MAD</strong><p>3 menu sales</p><small>Next: repeat on two Fridays</small></div>
+        <div class="campaign-result-line ${highlightedCampaignId === "signature-reel-series" ? "is-highlighted" : ""}" data-campaign-result="signature-reel-series"><span>Signature Reel Series</span><strong>${state.studioMission.published ? "Published" : "In execution"}</strong><p>${state.studioMission.clips.filter((clip) => clip.status === "approved").length} / 5 clips approved</p><small>Next: ${state.studioMission.published ? "track views and reservations" : "complete Studio mission"}</small></div>
+      </section>
+    </div>
+  `;
+
+  if (highlightedCampaignId) {
+    window.setTimeout(() => {
+      contentStage.querySelector(`[data-campaign-result="${highlightedCampaignId}"]`)?.scrollIntoView?.({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 50);
+  }
+}
+
+function renderFocusedSettingsPage() {
+  const state = stableState();
+  const profile = state.businessIntelligenceProfile;
+  const memory = buildBusinessIntelligenceMemory(profile);
+  contentStage.innerHTML = `
+    <div class="growth-os-page settings-os-page business-intelligence-page">
+      <header class="growth-os-header has-action">
+        <div>
+          <p class="section-label">Business Intelligence Profile</p>
+          <h2>Business memory.</h2>
+          <p>Answer what you know. Skip what you do not. Harvest will improve this profile over time before making decisions.</p>
+        </div>
+        <div class="bi-save-status" data-bi-save-status>Auto-saves as you type</div>
+      </header>
+
+      ${biSection("1. Business Identity", "Context for every future analysis.", [
+        biControl("Business Name", biField("identity.businessName", "Ex: Café Atlas")),
+        biControl("Industry", biSelect("identity.industry", ["Food & Beverage", "Beauty", "Fitness", "Retail", "Services", "Other"])),
+        biControl("Business Category", biField("identity.businessCategory", "Ex: Neighbourhood café")),
+        biControl("City", biField("identity.city", "Ex: Casablanca")),
+        biControl("Number of Locations", biField("identity.numberOfLocations", "Ex: 1", "number")),
+        biControl("Years in Business", biField("identity.yearsInBusiness", "Ex: 3", "number")),
+        biControl("Number of Employees", biField("identity.numberOfEmployees", "Ex: 8", "number")),
+      ])}
+
+      ${biSection("2. Business Goals", "Recommendations will optimize for the owner's main objective.", [
+        biControl("Primary Goal", biSelect("goals.primaryGoal", ["More Orders", "More Reservations", "More Leads", "More Revenue", "More Repeat Customers", "More Reviews", "More Brand Awareness"])),
+        biControl("Secondary Goal", biSelect("goals.secondaryGoal", ["More Orders", "More Reservations", "More Leads", "More Revenue", "More Repeat Customers", "More Reviews", "More Brand Awareness"])),
+        biControl("Current Biggest Challenge", biField("goals.currentBiggestChallenge", "Ex: Few weekday customers")),
+        biControl("Success Metric", biField("goals.successMetric", "Ex: 500 Google reviews")),
+        biControl("Desired Time Horizon", biSelect("goals.desiredTimeHorizon", ["This week", "1 month", "3 months", "4 months", "6 months", "12 months"])),
+      ])}
+
+      ${biSection("3. Products & Services", "The Brain must know what should actually be promoted.", [
+        biControl("Best Selling Products", biField("products.bestSellingProducts", "Separate with commas")),
+        biControl("Highest Margin Products", biField("products.highestMarginProducts", "Separate with commas")),
+        biControl("Products Needing Promotion", biField("products.productsNeedingPromotion", "Separate with commas")),
+        biControl("Seasonal Products", biField("products.seasonalProducts", "Ex: Ramadan menu, summer drinks")),
+        biControl("Average Order Value", biField("products.averageOrderValue", "MAD", "number"), "Optional"),
+      ])}
+
+      ${biSection("4. Customers", "Understand who buys, why they buy, and when they buy.", [
+        biControl("Target Audience", biField("customers.targetAudience", "Ex: Families, students, professionals")),
+        biControl("Customer Segments", biField("customers.customerSegments", "Ex: Lunch workers, weekend families")),
+        biControl("Buying Motivations", biField("customers.buyingMotivations", "Ex: Quality, atmosphere, price")),
+        biControl("Peak Days", biField("customers.peakDays", "Ex: Friday, Saturday")),
+        biControl("Peak Hours", biField("customers.peakHours", "Ex: 19:00-22:00")),
+        biControl("Returning Customer Percentage", biField("customers.returningCustomerPercentage", "Ex: 35%", "text"), "Optional"),
+      ])}
+
+      ${biSection("5. Current Marketing", "Understand current marketing maturity and channels.", [
+        biControl("Instagram", biField("marketing.instagram", "@moncommerce")),
+        biControl("Facebook", biField("marketing.facebook", "Facebook page URL or name"), "Optional"),
+        biControl("TikTok", biField("marketing.tiktok", "@moncommerce"), "Optional"),
+        biControl("WhatsApp", biSelect("marketing.whatsapp", ["Available", "Not Available", "Unknown"])),
+        biControl("Google Business Profile", biSelect("marketing.googleBusinessProfile", ["Active", "Not Active", "Unknown"])),
+        biControl("Website", biField("marketing.website", "https://"), "Optional"),
+        biControl("Posting Frequency", biField("marketing.postingFrequency", "Ex: 3 posts per week")),
+        biControl("Running Ads?", biSelect("marketing.runningAds", ["Yes", "No", "Sometimes", "Unknown"])),
+        biControl("Previous Campaigns", biField("marketing.previousCampaigns", "What has been tried?")),
+        biControl("Current Content Posted", biField("marketing.currentContentTypes", "Ex: photos, reels, stories")),
+      ])}
+
+      ${biSection("6. Resources", "Recommendations must be realistic for time, team and budget.", [
+        biControl("Monthly Marketing Budget", biField("resources.monthlyMarketingBudget", "MAD", "number"), "Optional"),
+        biControl("Advertising Budget", biField("resources.advertisingBudget", "MAD", "number"), "Optional"),
+        biControl("Available Time", biField("resources.availableTime", "Ex: 30 min/week")),
+        biControl("Can Create Photos?", biSelect("resources.canCreatePhotos", ["Yes", "No", "Sometimes", "Unknown"])),
+        biControl("Can Create Videos?", biSelect("resources.canCreateVideos", ["Yes", "No", "Sometimes", "Unknown"])),
+        biControl("Staff Available?", biSelect("resources.staffAvailable", ["Yes", "No", "Sometimes", "Unknown"])),
+        biControl("Owner Personally Involved?", biSelect("resources.ownerPersonallyInvolved", ["Yes", "No", "Sometimes", "Unknown"])),
+      ])}
+
+      ${biSection("7. Business Performance", "Baseline for future Business Health and progress tracking.", [
+        biControl("Revenue Trend", biSelect("performance.revenueTrend", ["Growing", "Stable", "Declining", "Unknown"])),
+        biControl("Weekly Customers", biField("performance.weeklyCustomers", "Ex: 120", "number"), "If available"),
+        biControl("Average Order Value", biField("performance.averageOrderValue", "MAD", "number"), "If available"),
+        biControl("Reviews", biField("performance.reviews", "Ex: 334", "number"), "If available"),
+        biControl("Average Rating", biField("performance.averageRating", "Ex: 4.5", "number"), "If available"),
+        biControl("Best Performing Days", biField("performance.bestPerformingDays", "Ex: Friday, Saturday")),
+        biControl("Weakest Days", biField("performance.weakestDays", "Ex: Tuesday")),
+      ])}
+
+      ${biSection("8. Competition", "Understand positioning and where the business can win.", [
+        biControl("Main Competitors", biField("competition.mainCompetitors", "Separate with commas"), "Optional"),
+        biControl("Biggest Competitive Advantage", biField("competition.biggestCompetitiveAdvantage", "Ex: Better atmosphere")),
+        biControl("Biggest Weakness Compared To Competitors", biField("competition.biggestWeaknessComparedToCompetitors", "Ex: Less visible on Instagram")),
+      ])}
+
+      ${biSection("9. Opportunities & Constraints", "Capture context that changes what should be recommended.", [
+        biControl("Opportunities", biField("context.opportunities", "Ex: Ramadan, university nearby, tourist area")),
+        biControl("Constraints", biField("context.constraints", "Ex: Parking issues, delivery limitations")),
+        biControl("Local Events", biField("context.localEvents", "Ex: football nights, holidays")),
+      ])}
+
+      ${biSection("10. Consultant Observations", "Capture insight that structured questions cannot.", [
+        biControl("Free Notes", biField("observations.consultantNotes", "Ex: Customers trust the product, but photos are outdated.", "textarea"), "Optional"),
+      ])}
+
+      <section class="bi-memory-output">
+        <div>
+          <span>Internal structured memory</span>
+          <p>This object is saved for future Business Understanding, Knowledge Matching and Decision Engine phases. No recommendations are generated here.</p>
+        </div>
+        <pre data-bi-memory-output>${studioEscape(JSON.stringify(memory, null, 2))}</pre>
+      </section>
+    </div>
+  `;
+}
+
+function renderFocusedCalendarPage() {
+  const state = stableState();
+  contentStage.innerHTML = `
+    <div class="growth-os-page calendar-os-page">
+      <header class="calendar-os-header">
+        <div><p class="section-label">June 2026</p><h2>Trust & Reputation</h2><p>This month builds visible proof before the summer visibility loop.</p></div>
+        <div class="calendar-goal-line"><span>Current goal</span><strong>${state.reviews} / 500 reviews</strong><div class="today-progress-track"><span style="width:${Math.min((state.reviews / 500) * 100, 100)}%"></span></div><small>On track</small></div>
+      </header>
+
+      <section class="calendar-orientation-lane">
+        <div class="system-lane__label"><span>Now</span><strong>This week</strong></div>
+        <div class="orientation-list">
+          <button type="button" data-demo-action="calendar-detail" data-calendar-id="google-review-push"><time>Wednesday</time><strong>Google Review Push</strong><span>Strengthen social proof</span></button>
+          <button type="button" data-demo-action="calendar-detail" data-calendar-id="weekend-family-menu"><time>Friday</time><strong>Weekend Family Menu</strong><span>Increase weekend revenue</span></button>
+          <button type="button" data-demo-action="calendar-detail" data-calendar-id="signature-reel"><time>Saturday</time><strong>Signature Reel</strong><span>Increase visibility</span></button>
+        </div>
+      </section>
+
+      <section class="calendar-orientation-lane">
+        <div class="system-lane__label"><span>Next</span><strong>Seasonal horizon</strong></div>
+        <div class="seasonal-timeline">
+          <div><time>July</time><strong>Summer Visibility</strong><span>Terrace, cold drinks, tourist traffic</span></div>
+          <div><time>August</time><strong>Tourist Season</strong><span>Location and premium experience</span></div>
+          <div><time>September</time><strong>Back to School</strong><span>Students, families, weekday habits</span></div>
+          <div><time>Weekly</time><strong>Friday Habits</strong><span>Family visits and group dining</span></div>
+          <div><time>Event-led</time><strong>Football Matches</strong><span>Shared moments without discount pressure</span></div>
+          <div><time>Seasonal</time><strong>Ramadan & Eid</strong><span>Family timing and reputation-safe planning</span></div>
+        </div>
+      </section>
+
+      <section class="calendar-orientation-lane month-path">
+        <div class="system-lane__label"><span>Path</span><strong>Where we are going</strong></div>
+        <div class="month-path__line">
+          <div class="is-complete"><span>May</span><strong>Community</strong><small>Completed</small></div>
+          <div class="is-current"><span>June</span><strong>Trust & Reputation</strong><small>In progress</small></div>
+          <div><span>July</span><strong>Summer Visibility</strong><small>Planned</small></div>
+          <div><span>August</span><strong>Tourist Season</strong><small>Upcoming</small></div>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 renderNavigation();
-setActivePage(location.hash.replace("#", ""), false);
+setActivePage(location.hash || location.pathname.split("/").pop() || "today", false);
 
 window.addEventListener("popstate", () => {
-  setActivePage(location.hash.replace("#", ""), false);
+  setActivePage(location.hash || location.pathname.split("/").pop() || "today", false);
 });
 
