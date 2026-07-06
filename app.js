@@ -204,7 +204,40 @@ function defaultBusinessIntelligenceProfile() {
   };
 }
 
+var SOLO_BRAIN_PHASES = [
+  "profile",
+  "understanding",
+  "diagnosis",
+  "evidence",
+  "decision",
+  "campaign",
+  "execution",
+  "performance",
+  "learning",
+];
+
+var SOLO_BRAIN_PHASE_ALIASES = {
+  business_profile: "profile",
+  business_intelligence_profile: "profile",
+  business_understanding: "understanding",
+  business_diagnosis: "diagnosis",
+  ranked_evidence: "evidence",
+  evidence_matching: "evidence",
+  best_next_move: "decision",
+  decision_engine: "decision",
+  campaign_generation: "campaign",
+  campaign_package: "campaign",
+  execution_manager: "execution",
+  execution_plan: "execution",
+  performance_measurement: "performance",
+  performance_report: "performance",
+  learning_engine: "learning",
+  learning_memory: "learning",
+  full: "learning",
+};
+
 function defaultDemoState() {
+  const defaultBrainOutputs = buildSoloBrainOutputs(defaultBusinessIntelligenceProfile());
   return {
     businessProfile: {
       businessName: "Solo Pizzeria Napoletana",
@@ -257,6 +290,14 @@ function defaultDemoState() {
     studio: {},
     studioMission: defaultStudioMission(),
     businessIntelligenceProfile: defaultBusinessIntelligenceProfile(),
+    businessDiagnosis: defaultBrainOutputs.businessDiagnosis,
+    rankedEvidence: defaultBrainOutputs.rankedEvidence,
+    bestNextMove: defaultBrainOutputs.bestNextMove,
+    campaignPackage: defaultBrainOutputs.campaignPackage,
+    executionPlan: defaultBrainOutputs.executionPlan,
+    performanceReport: defaultBrainOutputs.performanceReport,
+    learningMemory: defaultBrainOutputs.learningMemory,
+    brainOrchestration: defaultBrainOutputs.orchestration,
     completedCalendarItems: []
   };
 }
@@ -283,13 +324,73 @@ function loadDemoState() {
       safeStorageRemove(localStorage, DEMO_STATE_KEY);
       return defaults;
     }
+    const mergedBusinessIntelligenceProfile = deepMergeProfile(defaults.businessIntelligenceProfile, parsed.businessIntelligenceProfile);
+    const mergedBusinessDiagnosis = parsed.businessDiagnosis && typeof parsed.businessDiagnosis === "object"
+      ? parsed.businessDiagnosis
+      : runBusinessUnderstandingEngine(mergedBusinessIntelligenceProfile);
+    const mergedRankedEvidence = parsed.rankedEvidence && typeof parsed.rankedEvidence === "object"
+      ? parsed.rankedEvidence
+      : runEvidenceMatchingEngine(buildEvidenceMatchingInput(mergedBusinessDiagnosis, mergedBusinessIntelligenceProfile));
+    const mergedBestNextMove = parsed.bestNextMove && typeof parsed.bestNextMove === "object"
+      ? parsed.bestNextMove
+      : runDecisionEngine(mergedBusinessDiagnosis, mergedRankedEvidence);
     return {
       ...defaults,
       ...parsed,
       businessProfile: { ...defaults.businessProfile, ...(parsed.businessProfile || {}) },
       campaigns: { ...defaults.campaigns, ...(parsed.campaigns || {}) },
       completedPlanSteps: { ...defaults.completedPlanSteps, ...(parsed.completedPlanSteps || {}) },
-      businessIntelligenceProfile: deepMergeProfile(defaults.businessIntelligenceProfile, parsed.businessIntelligenceProfile),
+      businessIntelligenceProfile: mergedBusinessIntelligenceProfile,
+      businessDiagnosis: mergedBusinessDiagnosis,
+      rankedEvidence: mergedRankedEvidence,
+      bestNextMove: mergedBestNextMove,
+      campaignPackage: parsed.campaignPackage && typeof parsed.campaignPackage === "object"
+        ? parsed.campaignPackage
+        : runCampaignGenerationEngine(mergedBusinessIntelligenceProfile, mergedBusinessDiagnosis, mergedBestNextMove, mergedRankedEvidence),
+      executionPlan: parsed.executionPlan && typeof parsed.executionPlan === "object"
+        ? parsed.executionPlan
+        : runExecutionManager(
+          mergedBusinessIntelligenceProfile,
+          mergedBusinessDiagnosis,
+          mergedBestNextMove,
+          parsed.campaignPackage && typeof parsed.campaignPackage === "object"
+            ? parsed.campaignPackage
+            : runCampaignGenerationEngine(mergedBusinessIntelligenceProfile, mergedBusinessDiagnosis, mergedBestNextMove, mergedRankedEvidence)
+        ),
+      performanceReport: parsed.performanceReport && typeof parsed.performanceReport === "object"
+        ? parsed.performanceReport
+        : runPerformanceMeasurementEngine(
+          mergedBusinessIntelligenceProfile,
+          mergedBusinessDiagnosis,
+          mergedBestNextMove,
+          parsed.campaignPackage && typeof parsed.campaignPackage === "object"
+            ? parsed.campaignPackage
+            : runCampaignGenerationEngine(mergedBusinessIntelligenceProfile, mergedBusinessDiagnosis, mergedBestNextMove, mergedRankedEvidence),
+          parsed.executionPlan && typeof parsed.executionPlan === "object"
+            ? parsed.executionPlan
+            : runExecutionManager(
+              mergedBusinessIntelligenceProfile,
+              mergedBusinessDiagnosis,
+              mergedBestNextMove,
+              parsed.campaignPackage && typeof parsed.campaignPackage === "object"
+                ? parsed.campaignPackage
+                : runCampaignGenerationEngine(mergedBusinessIntelligenceProfile, mergedBusinessDiagnosis, mergedBestNextMove, mergedRankedEvidence)
+            ),
+          { results: Array.isArray(parsed.results) ? parsed.results : [] }
+        ),
+      learningMemory: parsed.learningMemory && typeof parsed.learningMemory === "object"
+        ? parsed.learningMemory
+        : runLearningEngine(
+          mergedBusinessIntelligenceProfile,
+          mergedBusinessDiagnosis,
+          mergedBestNextMove,
+          parsed.campaignPackage && typeof parsed.campaignPackage === "object"
+            ? parsed.campaignPackage
+            : runCampaignGenerationEngine(mergedBusinessIntelligenceProfile, mergedBusinessDiagnosis, mergedBestNextMove, mergedRankedEvidence),
+          parsed.executionPlan && typeof parsed.executionPlan === "object" ? parsed.executionPlan : {},
+          parsed.performanceReport && typeof parsed.performanceReport === "object" ? parsed.performanceReport : {},
+          { results: Array.isArray(parsed.results) ? parsed.results : [], previousLearningMemory: null }
+        ),
       results: Array.isArray(parsed.results) ? parsed.results : defaults.results,
       learning_events: Array.isArray(parsed.learning_events) ? parsed.learning_events : defaults.learning_events,
       completedCampaigns: Array.isArray(parsed.completedCampaigns) ? parsed.completedCampaigns : defaults.completedCampaigns,
@@ -675,7 +776,7 @@ document.addEventListener("click", (event) => {
   }
 
   const button = event.target.closest("button");
-  if (button && button.closest(".nav-list")) return;
+  if (button && button.closest(".nav-list") && !button.dataset.demoAction) return;
 
   const action = button?.dataset.demoAction;
   if (button && action) {
@@ -716,6 +817,20 @@ function saveBusinessIntelligenceInput(control) {
   const hasNumericValue = rawValue !== "" && Number.isFinite(numericValue);
   setNestedValue(state.businessIntelligenceProfile, field, value);
   state.businessIntelligenceProfile.updatedAt = new Date().toISOString();
+  const brainRun = runSoloBrainOrchestrator({
+    businessIntelligenceProfile: state.businessIntelligenceProfile,
+    targetPhase: "learning",
+    businessKpis: state,
+    previousLearningMemory: state.learningMemory,
+  });
+  state.businessDiagnosis = brainRun.businessDiagnosis;
+  state.rankedEvidence = brainRun.rankedEvidence;
+  state.bestNextMove = brainRun.bestNextMove;
+  state.campaignPackage = brainRun.campaignPackage;
+  state.executionPlan = brainRun.executionPlan;
+  state.performanceReport = brainRun.performanceReport;
+  state.learningMemory = brainRun.learningMemory;
+  state.brainOrchestration = brainRun.orchestration;
 
   if (field === "identity.businessName") state.businessProfile.businessName = value || state.businessProfile.businessName;
   if (field === "identity.businessCategory") state.businessProfile.brandPositioning = value || state.businessProfile.brandPositioning;
@@ -803,6 +918,20 @@ document.addEventListener("submit", (event) => {
     if (customers > 0) state.recentWins.unshift(`+${customers} customers gained`);
     state.recentActivity.unshift(`Result saved: ${views} views, ${messages} messages, ${reservations} reservations, +${customers} customers`);
     if (notes) state.recentActivity.unshift(`Note: ${notes}`);
+    const brainRun = runSoloBrainOrchestrator({
+      businessIntelligenceProfile: state.businessIntelligenceProfile,
+      businessDiagnosis: state.businessDiagnosis,
+      rankedEvidence: state.rankedEvidence,
+      bestNextMove: state.bestNextMove,
+      campaignPackage: state.campaignPackage,
+      executionPlan: state.executionPlan,
+      targetPhase: "learning",
+      businessKpis: state,
+      previousLearningMemory: state.learningMemory,
+    });
+    state.performanceReport = brainRun.performanceReport;
+    state.learningMemory = brainRun.learningMemory;
+    state.brainOrchestration = brainRun.orchestration;
   }, "Result saved");
   closeDemoModal();
 });
@@ -825,6 +954,50 @@ function handleDemoAction(action, button) {
 
   if (action === "search") {
     showDemoPanel("Recherche", "La recherche est prête en mode démo.");
+    return;
+  }
+
+  if (action === "accept-opportunity") {
+    state.opportunityAccepted = true;
+    state.studioMission = missionForCampaign(button?.dataset?.campaignId || "google-review-growth-system", state.studioMission);
+    state.studioMission.created = true;
+    saveDemoState();
+    showDemoPanel("SOLO prepared everything", "WhatsApp text, review request and checklist are ready.");
+    setActivePage("today", false);
+    return;
+  }
+
+  if (action === "open-solo-brain-test") {
+    renderDeveloperBrainPanel(runDeveloperSoloBrain("learning"), "SOLO Brain V1 · Full Pipeline");
+    return;
+  }
+
+  if (action === "close-brain-test") {
+    document.querySelector(".developer-brain-panel")?.remove();
+    return;
+  }
+
+  if (action === "brain-run-full") {
+    renderDeveloperBrainPanel(runDeveloperSoloBrain("learning"), "SOLO Brain V1 · Full Pipeline");
+    showDemoPanel("SOLO Brain tested", "Full pipeline completed in developer mode.");
+    return;
+  }
+
+  if (action === "brain-run-diagnosis") {
+    renderDeveloperBrainPanel(runDeveloperSoloBrain("diagnosis"), "SOLO Brain V1 · Diagnosis Only");
+    showDemoPanel("SOLO Brain tested", "Diagnosis-only workflow completed.");
+    return;
+  }
+
+  if (action === "brain-run-campaign") {
+    renderDeveloperBrainPanel(runDeveloperSoloBrain("campaign"), "SOLO Brain V1 · Campaign Only");
+    showDemoPanel("SOLO Brain tested", "Campaign workflow completed without execution.");
+    return;
+  }
+
+  if (action === "brain-reset-demo") {
+    resetDemoState();
+    renderDeveloperBrainPanel(null, "SOLO Brain V1");
     return;
   }
 
@@ -4387,6 +4560,15 @@ function renderNavigation() {
     button.addEventListener("click", () => setActivePage(page.id));
     navList.appendChild(button);
   });
+
+  if (isDeveloperDemoMode()) {
+    const developerButton = document.createElement("button");
+    developerButton.className = "nav-item nav-item--developer";
+    developerButton.type = "button";
+    developerButton.dataset.demoAction = "open-solo-brain-test";
+    developerButton.innerHTML = `<span aria-hidden="true">🧪</span><span>Test SOLO Brain</span>`;
+    navList.appendChild(developerButton);
+  }
 }
 
 /* Stable demo layer: simple interactions only */
@@ -4403,6 +4585,156 @@ function stableState() {
     recentActivity: Array.isArray(demoState?.recentActivity) ? demoState.recentActivity : defaults.recentActivity,
     results: Array.isArray(demoState?.results) ? demoState.results : defaults.results,
     businessIntelligenceProfile: deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile),
+    businessDiagnosis: demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+      ? demoState.businessDiagnosis
+      : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+    rankedEvidence: demoState?.rankedEvidence && typeof demoState.rankedEvidence === "object"
+      ? demoState.rankedEvidence
+      : runEvidenceMatchingEngine(buildEvidenceMatchingInput(
+        demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+          ? demoState.businessDiagnosis
+          : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+        deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)
+      )),
+    bestNextMove: demoState?.bestNextMove && typeof demoState.bestNextMove === "object"
+      ? demoState.bestNextMove
+      : runDecisionEngine(
+        demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+          ? demoState.businessDiagnosis
+          : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+        demoState?.rankedEvidence && typeof demoState.rankedEvidence === "object"
+          ? demoState.rankedEvidence
+          : runEvidenceMatchingEngine(buildEvidenceMatchingInput(
+            demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+              ? demoState.businessDiagnosis
+              : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+            deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)
+          ))
+      ),
+    campaignPackage: demoState?.campaignPackage && typeof demoState.campaignPackage === "object"
+      ? demoState.campaignPackage
+      : runCampaignGenerationEngine(
+        deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile),
+        demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+          ? demoState.businessDiagnosis
+          : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+        demoState?.bestNextMove && typeof demoState.bestNextMove === "object"
+          ? demoState.bestNextMove
+          : runDecisionEngine(
+            demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+              ? demoState.businessDiagnosis
+              : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+            demoState?.rankedEvidence && typeof demoState.rankedEvidence === "object"
+              ? demoState.rankedEvidence
+              : runEvidenceMatchingEngine(buildEvidenceMatchingInput(
+                demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+                  ? demoState.businessDiagnosis
+                  : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+                deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)
+              ))
+          ),
+        demoState?.rankedEvidence && typeof demoState.rankedEvidence === "object"
+          ? demoState.rankedEvidence
+          : runEvidenceMatchingEngine(buildEvidenceMatchingInput(
+            demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+              ? demoState.businessDiagnosis
+              : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+            deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)
+          ))
+      ),
+    executionPlan: demoState?.executionPlan && typeof demoState.executionPlan === "object"
+      ? demoState.executionPlan
+      : runExecutionManager(
+        deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile),
+        demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+          ? demoState.businessDiagnosis
+          : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+        demoState?.bestNextMove && typeof demoState.bestNextMove === "object"
+          ? demoState.bestNextMove
+          : runDecisionEngine(
+            demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+              ? demoState.businessDiagnosis
+              : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+            demoState?.rankedEvidence && typeof demoState.rankedEvidence === "object"
+              ? demoState.rankedEvidence
+              : runEvidenceMatchingEngine(buildEvidenceMatchingInput(
+                demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+                  ? demoState.businessDiagnosis
+                  : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+                deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)
+              ))
+          ),
+        demoState?.campaignPackage && typeof demoState.campaignPackage === "object"
+          ? demoState.campaignPackage
+          : runCampaignGenerationEngine(
+            deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile),
+            demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+              ? demoState.businessDiagnosis
+              : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+            demoState?.bestNextMove && typeof demoState.bestNextMove === "object"
+              ? demoState.bestNextMove
+              : runDecisionEngine(
+                demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+                  ? demoState.businessDiagnosis
+                  : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+                demoState?.rankedEvidence && typeof demoState.rankedEvidence === "object"
+                  ? demoState.rankedEvidence
+                  : runEvidenceMatchingEngine(buildEvidenceMatchingInput(
+                    demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+                      ? demoState.businessDiagnosis
+                      : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+                    deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)
+                  ))
+              ),
+            demoState?.rankedEvidence && typeof demoState.rankedEvidence === "object"
+              ? demoState.rankedEvidence
+              : runEvidenceMatchingEngine(buildEvidenceMatchingInput(
+                demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+                  ? demoState.businessDiagnosis
+                  : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+                deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)
+              ))
+          )
+      ),
+    performanceReport: demoState?.performanceReport && typeof demoState.performanceReport === "object"
+      ? demoState.performanceReport
+      : runPerformanceMeasurementEngine(
+        deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile),
+        demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+          ? demoState.businessDiagnosis
+          : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
+        demoState?.bestNextMove && typeof demoState.bestNextMove === "object"
+          ? demoState.bestNextMove
+          : defaults.bestNextMove,
+        demoState?.campaignPackage && typeof demoState.campaignPackage === "object"
+          ? demoState.campaignPackage
+          : defaults.campaignPackage,
+        demoState?.executionPlan && typeof demoState.executionPlan === "object"
+          ? demoState.executionPlan
+          : defaults.executionPlan,
+        demoState && typeof demoState === "object" ? demoState : defaults
+      ),
+    learningMemory: demoState?.learningMemory && typeof demoState.learningMemory === "object"
+      ? demoState.learningMemory
+      : runLearningEngine(
+        deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile),
+        demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
+          ? demoState.businessDiagnosis
+          : defaults.businessDiagnosis,
+        demoState?.bestNextMove && typeof demoState.bestNextMove === "object"
+          ? demoState.bestNextMove
+          : defaults.bestNextMove,
+        demoState?.campaignPackage && typeof demoState.campaignPackage === "object"
+          ? demoState.campaignPackage
+          : defaults.campaignPackage,
+        demoState?.executionPlan && typeof demoState.executionPlan === "object"
+          ? demoState.executionPlan
+          : defaults.executionPlan,
+        demoState?.performanceReport && typeof demoState.performanceReport === "object"
+          ? demoState.performanceReport
+          : defaults.performanceReport,
+        { results: Array.isArray(demoState?.results) ? demoState.results : [], previousLearningMemory: null }
+      ),
     studio: demoState?.studio && typeof demoState.studio === "object" ? demoState.studio : {},
     studioMission: {
       ...defaults.studioMission,
@@ -4468,6 +4800,39 @@ function generateSoloBrain() {
 }
 
 function homeRecommendation(state = stableState()) {
+  const decision = state.bestNextMove;
+  if (decision?.decision_type === "best_next_move") {
+    const titleText = decision.campaign_name || "";
+    const isContentMove = /reel|content|video|story/i.test(titleText);
+    const isReviewMove = /review|google/i.test(titleText);
+    const campaignId = isContentMove
+      ? "signature-reel-series"
+      : isReviewMove
+        ? "google-review-growth-system"
+        : /whatsapp/i.test(titleText)
+          ? "whatsapp-vip-list"
+          : /menu|weekend|weekday/i.test(titleText)
+            ? "weekend-family-menu"
+            : "google-review-growth-system";
+    return {
+      eyebrow: "MEILLEUR GESTE DU JOUR",
+      title: titleText,
+      opportunity: "Highest ROI",
+      confidence: decision.confidence || `${decision.confidence_score || 75}%`,
+      why: decision.expected_impact || "Decision based on business diagnosis and ranked evidence.",
+      impact: decision.expected_impact || "Measurable business progress",
+      duration: decision.time_required || "15 min",
+      targetPage: isContentMove ? "studio" : "campaigns",
+      campaignId,
+      cta: isContentMove ? "Aller au Studio" : "Lancer la campagne",
+      bullets: Array.isArray(decision.why) ? decision.why.slice(0, 4) : [],
+      basedOn: [
+        ...(decision.success_metrics || []).slice(0, 2),
+        decision.effort ? `Effort ${decision.effort}` : "",
+        decision.estimated_cost || "",
+      ].filter(Boolean).slice(0, 4),
+    };
+  }
   const isContentNext = Number(state.weeklyCompleted || 2) >= 3;
   if (isContentNext) {
     return {
@@ -4509,6 +4874,54 @@ function homeRecommendation(state = stableState()) {
   };
 }
 
+function confidenceLabel(value) {
+  const score = Number(String(value || "").replace("%", ""));
+  if (!Number.isFinite(score)) {
+    return /high|strong/i.test(String(value || "")) ? "High" : "Good";
+  }
+  if (score >= 80) return "High";
+  if (score >= 60) return "Good";
+  return "Moderate";
+}
+
+function businessOpportunitySummary(state = stableState(), brainRun = null) {
+  const decision = brainRun?.bestNextMove || state.bestNextMove || {};
+  const profile = brainRun?.businessIntelligenceProfile || state.businessIntelligenceProfile || defaultBusinessIntelligenceProfile();
+  const averageSpend = Number(profile.products?.averageOrderValue || state.businessProfile?.averageTicket || 100) || 100;
+  const subscriptionPrice = Number(profile.subscriptionPrice || state.subscriptionPrice || 1000) || 1000;
+  const extraCustomers = Math.max(20, Math.ceil((subscriptionPrice * 2) / averageSpend));
+  const estimatedValue = extraCustomers * averageSpend;
+  const campaignName = decision.campaign_name || "Google Review Growth System";
+  const isReview = /review|google/i.test(campaignName);
+  const isContent = /reel|content|video|story/i.test(campaignName);
+  const action = isContent
+    ? "Prepare one short Instagram reel for this weekend."
+    : "Ask your last 20 happy customers to leave a Google review this week.";
+  const why = isContent
+    ? "Your product is visual and easy to understand. Showing it clearly on Instagram can make more local customers want to visit."
+    : "Your restaurant already has satisfied customers, but not enough of them are leaving Google reviews. More reviews can help new customers trust you faster.";
+
+  return {
+    title: `SOLO found a way to bring around +${extraCustomers} more customers this month.`,
+    estimatedValue: `≈ +${estimatedValue.toLocaleString("en-US")} MAD/month`,
+    basedOn: `average customer spend: ${averageSpend.toLocaleString("en-US")} MAD × ${extraCustomers} extra customers`,
+    effort: isContent ? "25 minutes" : "25 minutes",
+    difficulty: "Easy",
+    confidence: confidenceLabel(decision.confidence || decision.confidence_score || 82),
+    why,
+    action,
+    campaignName,
+    campaignId: isContent ? "signature-reel-series" : isReview ? "google-review-growth-system" : "weekend-family-menu",
+    targetPage: isContent ? "studio" : "campaigns",
+    prepared: {
+      whatsapp: "Merci beaucoup pour votre visite. Si vous avez aimé l'expérience, un petit avis Google nous aide énormément.",
+      instagram: "Nos clients parlent de leur expérience chez Solo Pizzeria. Votre avis aide d'autres familles à nous découvrir.",
+      google: "Bonjour, merci d'avoir visité Solo Pizzeria. Votre avis Google nous aide à gagner la confiance de nouveaux clients.",
+      checklist: ["Choose 20 happy recent customers", "Send the WhatsApp message", "Place the review QR near payment", "Ask the team to mention reviews after payment"],
+    },
+  };
+}
+
 function handleDemoAction(action, button) {
   const state = stableState();
 
@@ -4529,6 +4942,50 @@ function handleDemoAction(action, button) {
 
   if (action === "search") {
     showDemoPanel("Recherche", "La recherche est prête en mode démo.");
+    return;
+  }
+
+  if (action === "accept-opportunity") {
+    state.opportunityAccepted = true;
+    state.studioMission = missionForCampaign(button?.dataset?.campaignId || "google-review-growth-system", state.studioMission);
+    state.studioMission.created = true;
+    saveDemoState();
+    showDemoPanel("SOLO prepared everything", "WhatsApp text, review request and checklist are ready.");
+    setActivePage("today", false);
+    return;
+  }
+
+  if (action === "open-solo-brain-test") {
+    renderDeveloperBrainPanel(runDeveloperSoloBrain("learning"), "SOLO Brain V1 · Full Pipeline");
+    return;
+  }
+
+  if (action === "close-brain-test") {
+    document.querySelector(".developer-brain-panel")?.remove();
+    return;
+  }
+
+  if (action === "brain-run-full") {
+    renderDeveloperBrainPanel(runDeveloperSoloBrain("learning"), "SOLO Brain V1 · Full Pipeline");
+    showDemoPanel("SOLO Brain tested", "Full pipeline completed in developer mode.");
+    return;
+  }
+
+  if (action === "brain-run-diagnosis") {
+    renderDeveloperBrainPanel(runDeveloperSoloBrain("diagnosis"), "SOLO Brain V1 · Diagnosis Only");
+    showDemoPanel("SOLO Brain tested", "Diagnosis-only workflow completed.");
+    return;
+  }
+
+  if (action === "brain-run-campaign") {
+    renderDeveloperBrainPanel(runDeveloperSoloBrain("campaign"), "SOLO Brain V1 · Campaign Only");
+    showDemoPanel("SOLO Brain tested", "Campaign workflow completed without execution.");
+    return;
+  }
+
+  if (action === "brain-reset-demo") {
+    resetDemoState();
+    renderDeveloperBrainPanel(null, "SOLO Brain V1");
     return;
   }
 
@@ -5205,6 +5662,2593 @@ function buildBusinessIntelligenceMemory(profile = stableState().businessIntelli
   };
 }
 
+function biKnown(value) {
+  if (value === null || value === undefined) return false;
+  if (Array.isArray(value)) return value.some(biKnown);
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value === "boolean") return true;
+  return String(value).trim() !== "";
+}
+
+function biText(value) {
+  if (!biKnown(value)) return "";
+  return Array.isArray(value) ? value.join(" ").toLowerCase() : String(value).toLowerCase();
+}
+
+function biGet(profile, path) {
+  return path.split(".").reduce((current, key) => current?.[key], profile);
+}
+
+function biIncludes(profile, paths, terms) {
+  const source = paths.map((path) => biText(biGet(profile, path))).join(" ");
+  return terms.some((term) => source.includes(term.toLowerCase()));
+}
+
+function biNumber(profile, path) {
+  const value = Number(biGet(profile, path));
+  return Number.isFinite(value) ? value : null;
+}
+
+function biObservation(label, evidence) {
+  return { label, evidence };
+}
+
+function runSwotUnderstanding(profile) {
+  const rating = biNumber(profile, "performance.averageRating");
+  const reviews = biNumber(profile, "performance.reviews");
+  const years = biNumber(profile, "identity.yearsInBusiness");
+  return {
+    strengths: [
+      rating >= 4.4 ? biObservation("Strong reputation", `${rating} average rating indicates customer satisfaction.`) : null,
+      reviews >= 100 ? biObservation("Visible proof base", `${reviews} Google reviews create an existing trust asset.`) : null,
+      years >= 2 ? biObservation("Established operating history", `${years} years in business provides local experience.`) : null,
+      biIncludes(profile, ["identity.businessCategory", "competition.biggestCompetitiveAdvantage"], ["premium", "authentic", "quality"])
+        ? biObservation("Clear differentiation", "Positioning and advantages describe a distinct premium offer.")
+        : null,
+    ].filter(Boolean),
+    weaknesses: [
+      biKnown(profile.goals?.currentBiggestChallenge) ? biObservation("Known growth constraint", profile.goals.currentBiggestChallenge) : null,
+      biKnown(profile.performance?.weakestDays) ? biObservation("Demand imbalance", `Weakest days: ${profile.performance.weakestDays}.`) : null,
+      biKnown(profile.competition?.biggestWeaknessComparedToCompetitors)
+        ? biObservation("Competitive weakness identified", profile.competition.biggestWeaknessComparedToCompetitors)
+        : null,
+    ].filter(Boolean),
+    opportunities: [
+      biKnown(profile.context?.opportunities) ? biObservation("Contextual demand openings", profile.context.opportunities) : null,
+      biKnown(profile.products?.seasonalProducts) ? biObservation("Seasonal product potential", profile.products.seasonalProducts) : null,
+      biIncludes(profile, ["marketing.whatsapp"], ["available", "yes"]) ? biObservation("Owned communication channel exists", "WhatsApp is available for customer relationship ownership.") : null,
+    ].filter(Boolean),
+    threats: [
+      biKnown(profile.context?.constraints) ? biObservation("Operational constraint risk", profile.context.constraints) : null,
+      biKnown(profile.competition?.mainCompetitors) ? biObservation("Direct competition present", profile.competition.mainCompetitors) : null,
+      biIncludes(profile, ["performance.revenueTrend"], ["declining"]) ? biObservation("Revenue pressure", "Revenue trend is marked as declining.") : null,
+    ].filter(Boolean),
+  };
+}
+
+function runPestelUnderstanding(profile) {
+  return {
+    political: [],
+    economic: [
+      biKnown(profile.resources?.monthlyMarketingBudget) || biKnown(profile.resources?.advertisingBudget)
+        ? biObservation("Budget context available", "Marketing and advertising budget fields contain usable information.")
+        : biObservation("Budget visibility missing", "Budget fields are not complete yet."),
+    ],
+    social: [
+      biKnown(profile.customers?.targetAudience) ? biObservation("Customer behavior context", profile.customers.targetAudience) : null,
+      biIncludes(profile, ["context.opportunities", "context.localEvents"], ["ramadan", "family", "football", "summer"])
+        ? biObservation("Culture and habit sensitivity", "Seasonal and local habits are present in the profile.")
+        : null,
+    ].filter(Boolean),
+    technological: [
+      biIncludes(profile, ["marketing.instagram", "marketing.tiktok", "marketing.googleBusinessProfile", "marketing.whatsapp"], ["@", "active", "available"])
+        ? biObservation("Digital channels exist", "The business has at least one active digital customer touchpoint.")
+        : biObservation("Digital channel visibility limited", "Active digital channels are not fully documented."),
+    ],
+    environmental: [
+      biIncludes(profile, ["context.opportunities", "products.seasonalProducts"], ["summer", "winter", "weather"])
+        ? biObservation("Seasonal environment matters", "Seasonal context appears relevant to demand.")
+        : null,
+    ].filter(Boolean),
+    legal: [],
+  };
+}
+
+function runMarketingMixUnderstanding(profile) {
+  return {
+    product: biKnown(profile.products?.bestSellingProducts)
+      ? biObservation("Product offer is identifiable", profile.products.bestSellingProducts)
+      : biObservation("Product clarity incomplete", "Best-selling products are not fully documented."),
+    price: biKnown(profile.products?.averageOrderValue) || biKnown(profile.performance?.averageOrderValue)
+      ? biObservation("Average value context exists", `Average order value: ${profile.products?.averageOrderValue || profile.performance?.averageOrderValue}.`)
+      : biObservation("Pricing signal missing", "Average order value is unknown."),
+    place: biKnown(profile.identity?.city)
+      ? biObservation("Location context available", `${profile.identity.city}${profile.identity?.numberOfLocations ? `, ${profile.identity.numberOfLocations} location(s)` : ""}.`)
+      : biObservation("Location context incomplete", "City or location data is missing."),
+    promotion: biKnown(profile.marketing?.postingFrequency) || biKnown(profile.marketing?.previousCampaigns)
+      ? biObservation("Promotion activity exists", `${profile.marketing?.postingFrequency || "Posting frequency unknown"}; ${profile.marketing?.previousCampaigns || "previous campaigns not listed"}.`)
+      : biObservation("Promotion activity unclear", "Current posting rhythm and previous actions are incomplete."),
+    people: biKnown(profile.resources?.staffAvailable)
+      ? biObservation("Team capacity signal exists", `Staff available: ${profile.resources.staffAvailable}.`)
+      : biObservation("Team capacity unclear", "Staff availability is not documented."),
+    process: biKnown(profile.goals?.currentBiggestChallenge)
+      ? biObservation("Process constraint visible", profile.goals.currentBiggestChallenge)
+      : biObservation("Process maturity unclear", "No explicit operating constraint is documented."),
+    physicalEvidence: biKnown(profile.competition?.biggestCompetitiveAdvantage) || biKnown(profile.observations?.consultantNotes)
+      ? biObservation("Experience evidence exists", profile.competition?.biggestCompetitiveAdvantage || profile.observations.consultantNotes)
+      : biObservation("Experience evidence incomplete", "The tangible customer experience is not fully documented."),
+  };
+}
+
+function runStpUnderstanding(profile) {
+  return {
+    segments: biKnown(profile.customers?.customerSegments) ? profile.customers.customerSegments : profile.customers?.targetAudience || "",
+    target: biKnown(profile.customers?.targetAudience) ? profile.customers.targetAudience : "Unknown",
+    positioning: biKnown(profile.identity?.businessCategory) ? profile.identity.businessCategory : profile.competition?.biggestCompetitiveAdvantage || "Unknown",
+    observation: biKnown(profile.customers?.targetAudience) && biKnown(profile.identity?.businessCategory)
+      ? "Target and positioning are documented enough for future matching."
+      : "Target or positioning data is incomplete.",
+  };
+}
+
+function runJtbdUnderstanding(profile) {
+  const motivations = profile.customers?.buyingMotivations || "";
+  return {
+    functionalJobs: [
+      biKnown(profile.products?.bestSellingProducts) ? `Buy ${profile.products.bestSellingProducts}.` : null,
+      biKnown(profile.customers?.peakHours) ? `Visit during ${profile.customers.peakHours}.` : null,
+    ].filter(Boolean),
+    emotionalJobs: [
+      biIncludes(profile, ["customers.buyingMotivations", "identity.businessCategory"], ["quality", "premium", "atmosphere"])
+        ? "Feel confident choosing a quality experience."
+        : null,
+    ].filter(Boolean),
+    socialJobs: [
+      biIncludes(profile, ["customers.buyingMotivations", "identity.businessCategory"], ["social", "family", "friends", "atmosphere"])
+        ? "Share a pleasant moment with other people."
+        : null,
+    ].filter(Boolean),
+    evidence: biKnown(motivations) ? motivations : "Buying motivations are incomplete.",
+  };
+}
+
+function runCustomerJourneyUnderstanding(profile) {
+  return {
+    awareness: biKnown(profile.marketing?.instagram) || biKnown(profile.marketing?.googleBusinessProfile)
+      ? biObservation("Awareness channels exist", "Instagram or Google Business Profile is documented.")
+      : biObservation("Awareness visibility unclear", "Top-of-funnel channels are incomplete."),
+    interest: biKnown(profile.marketing?.currentContentTypes)
+      ? biObservation("Interest assets exist", profile.marketing.currentContentTypes)
+      : biObservation("Interest assets unclear", "Current content types are missing."),
+    consideration: biNumber(profile, "performance.averageRating") >= 4.4
+      ? biObservation("Consideration supported by reputation", `${profile.performance.averageRating} rating supports trust.`)
+      : biObservation("Consideration evidence limited", "Rating data is weak or missing."),
+    purchase: biKnown(profile.performance?.bestPerformingDays)
+      ? biObservation("Purchase timing known", `Best days: ${profile.performance.bestPerformingDays}.`)
+      : biObservation("Purchase timing incomplete", "Best-performing days are missing."),
+    retention: biKnown(profile.customers?.returningCustomerPercentage)
+      ? biObservation("Retention baseline known", `${profile.customers.returningCustomerPercentage} returning customers.`)
+      : biObservation("Retention baseline missing", "Returning customer percentage is not documented."),
+    advocacy: biNumber(profile, "performance.reviews") >= 100
+      ? biObservation("Advocacy asset exists", `${profile.performance.reviews} reviews already exist.`)
+      : biObservation("Advocacy proof limited", "Review volume is low or missing."),
+  };
+}
+
+function runCompetitionUnderstanding(profile) {
+  return {
+    competitorsStronger: biKnown(profile.competition?.biggestWeaknessComparedToCompetitors)
+      ? [biObservation("Competitors may be stronger on this point", profile.competition.biggestWeaknessComparedToCompetitors)]
+      : [],
+    competitorsWeaker: biKnown(profile.competition?.biggestCompetitiveAdvantage)
+      ? [biObservation("Business advantage over competitors", profile.competition.biggestCompetitiveAdvantage)]
+      : [],
+    marketOpenings: biKnown(profile.competition?.mainCompetitors)
+      ? [biObservation("Competition context documented", profile.competition.mainCompetitors)]
+      : [biObservation("Competitor map incomplete", "Main competitors are not documented yet.")],
+  };
+}
+
+function runPsychologyUnderstanding(profile) {
+  return {
+    socialProof: biNumber(profile, "performance.averageRating") >= 4.4
+      ? biObservation("Trust signal exists", `${profile.performance.averageRating} rating is a strong trust cue.`)
+      : biObservation("Trust signal incomplete", "Rating information is missing or weak."),
+    urgency: biKnown(profile.products?.seasonalProducts) || biKnown(profile.context?.localEvents)
+      ? biObservation("Timing cues exist", profile.products?.seasonalProducts || profile.context.localEvents)
+      : biObservation("Urgency cue missing", "No timing-sensitive product or event is documented."),
+    scarcity: biObservation("Scarcity not documented", "Capacity limits or limited availability are not captured."),
+    authority: biIncludes(profile, ["identity.businessCategory", "competition.biggestCompetitiveAdvantage"], ["premium", "authentic", "years"])
+      ? biObservation("Authority cue exists", "Positioning supports perceived expertise.")
+      : biObservation("Authority cue incomplete", "Expertise proof is not fully documented."),
+    community: biIncludes(profile, ["customers.targetAudience", "context.opportunities"], ["family", "students", "professionals", "community"])
+      ? biObservation("Community context exists", "Customer groups and local habits are visible.")
+      : biObservation("Community cue incomplete", "Community behavior is not fully documented."),
+  };
+}
+
+function runBenchmarkUnderstanding(profile) {
+  const rating = biNumber(profile, "performance.averageRating");
+  const reviews = biNumber(profile, "performance.reviews");
+  return {
+    aboveAverage: [
+      rating >= 4.4 ? biObservation("Reputation quality", `${rating} rating is strong for local hospitality discovery.`) : null,
+      reviews >= 300 ? biObservation("Review volume", `${reviews} reviews provides meaningful public proof.`) : null,
+    ].filter(Boolean),
+    average: [
+      biKnown(profile.marketing?.postingFrequency) ? biObservation("Posting rhythm documented", profile.marketing.postingFrequency) : null,
+    ].filter(Boolean),
+    belowAverage: [
+      !biKnown(profile.customers?.returningCustomerPercentage) ? biObservation("Retention measurement", "Returning customer percentage is unknown.") : null,
+      !biKnown(profile.resources?.monthlyMarketingBudget) ? biObservation("Budget planning", "Monthly marketing budget is unknown.") : null,
+    ].filter(Boolean),
+  };
+}
+
+function runSeasonalityUnderstanding(profile) {
+  const context = [profile.context?.opportunities, profile.context?.localEvents, profile.products?.seasonalProducts].filter(biKnown).join("; ");
+  return {
+    activeSeasonalSignals: context ? [biObservation("Seasonal context captured", context)] : [],
+    risks: biKnown(profile.context?.constraints) ? [biObservation("Seasonal or local constraint", profile.context.constraints)] : [],
+    dataGap: context ? "" : "Seasonality is not documented yet.",
+  };
+}
+
+function calculateBusinessUnderstandingDataQuality(profile) {
+  const paths = [
+    "identity.businessName", "identity.industry", "identity.businessCategory", "identity.city", "identity.yearsInBusiness",
+    "goals.primaryGoal", "goals.currentBiggestChallenge", "goals.successMetric",
+    "products.bestSellingProducts", "products.highestMarginProducts", "products.averageOrderValue",
+    "customers.targetAudience", "customers.customerSegments", "customers.buyingMotivations", "customers.peakDays", "customers.peakHours",
+    "marketing.instagram", "marketing.whatsapp", "marketing.googleBusinessProfile", "marketing.postingFrequency", "marketing.currentContentTypes",
+    "resources.availableTime", "resources.canCreatePhotos", "resources.canCreateVideos", "resources.staffAvailable",
+    "performance.revenueTrend", "performance.weeklyCustomers", "performance.averageOrderValue", "performance.reviews", "performance.averageRating",
+    "competition.mainCompetitors", "competition.biggestCompetitiveAdvantage", "competition.biggestWeaknessComparedToCompetitors",
+    "context.opportunities", "context.constraints", "observations.consultantNotes",
+  ];
+  const known = paths.filter((path) => biKnown(biGet(profile, path)));
+  const missing = paths.filter((path) => !biKnown(biGet(profile, path)));
+  const score = Math.round((known.length / paths.length) * 100);
+  return {
+    level: score >= 75 ? "High" : score >= 50 ? "Medium" : "Low",
+    score,
+    usable_fields: known.length,
+    missing_fields: missing,
+  };
+}
+
+function firstDiagnosisObservation(...groups) {
+  for (const group of groups.flat()) {
+    if (group) return group;
+  }
+  return biObservation("Insufficient data", "The profile does not contain enough information for this field yet.");
+}
+
+function runBusinessUnderstandingEngine(profileInput = defaultBusinessIntelligenceProfile()) {
+  const profile = profileInput?.memory_type === "business_intelligence_profile"
+    ? {
+        version: profileInput.version,
+        updatedAt: profileInput.updated_at,
+        identity: profileInput.business_context || {},
+        goals: profileInput.decision_objectives || {},
+        products: profileInput.promotion_inputs || {},
+        customers: profileInput.customer_understanding || {},
+        marketing: profileInput.marketing_maturity || {},
+        resources: profileInput.execution_capacity || {},
+        performance: profileInput.business_health_baseline || {},
+        competition: profileInput.positioning_context || {},
+        context: profileInput.contextual_opportunities_and_constraints || {},
+        observations: profileInput.consultant_observations || {},
+      }
+    : deepMergeProfile(defaultBusinessIntelligenceProfile(), profileInput || {});
+
+  const swot = runSwotUnderstanding(profile);
+  const pestel = runPestelUnderstanding(profile);
+  const marketingMix = runMarketingMixUnderstanding(profile);
+  const stp = runStpUnderstanding(profile);
+  const jtbd = runJtbdUnderstanding(profile);
+  const journey = runCustomerJourneyUnderstanding(profile);
+  const competition = runCompetitionUnderstanding(profile);
+  const psychology = runPsychologyUnderstanding(profile);
+  const benchmarks = runBenchmarkUnderstanding(profile);
+  const seasonality = runSeasonalityUnderstanding(profile);
+  const dataQuality = calculateBusinessUnderstandingDataQuality(profile);
+
+  const rating = biNumber(profile, "performance.averageRating");
+  const reviews = biNumber(profile, "performance.reviews");
+  const hasStrongReputation = rating >= 4.4 && reviews >= 100;
+  const hasExecutionCapacity = biIncludes(profile, ["resources.canCreatePhotos", "resources.canCreateVideos", "resources.staffAvailable"], ["yes", "sometimes"]);
+  const hasPromotionActivity = biKnown(profile.marketing?.postingFrequency) || biKnown(profile.marketing?.previousCampaigns);
+  const healthStatus = hasStrongReputation ? "Strong foundation" : dataQuality.score >= 50 ? "Stable foundation" : "Incomplete foundation";
+  const maturityStatus = hasPromotionActivity && biKnown(profile.marketing?.googleBusinessProfile) ? "Developing marketing system" : "Early marketing system";
+  const readinessStatus = hasExecutionCapacity ? "Operationally ready" : "Operational capacity unclear";
+  const urgencyLevel = swot.weaknesses.length >= 2 || biIncludes(profile, ["performance.revenueTrend"], ["declining"]) ? "Medium" : "Low";
+  const confidenceScore = Math.min(95, Math.max(45, Math.round(dataQuality.score * 0.65 + (hasStrongReputation ? 20 : 8) + (hasPromotionActivity ? 8 : 0))));
+
+  const biggestStrength = firstDiagnosisObservation(
+    swot.strengths,
+    benchmarks.aboveAverage,
+    competition.competitorsWeaker
+  );
+  const biggestWeakness = firstDiagnosisObservation(
+    swot.weaknesses,
+    benchmarks.belowAverage,
+    [journey.retention]
+  );
+  const biggestOpportunity = firstDiagnosisObservation(
+    swot.opportunities,
+    seasonality.activeSeasonalSignals,
+    [psychology.socialProof]
+  );
+  const biggestThreat = firstDiagnosisObservation(
+    swot.threats,
+    seasonality.risks,
+    competition.competitorsStronger
+  );
+  const highestPriorityProblem = firstDiagnosisObservation(
+    swot.weaknesses,
+    [journey.retention, journey.awareness],
+    benchmarks.belowAverage
+  );
+
+  return {
+    diagnosis_type: "business_diagnosis",
+    version: "1.0",
+    source: "business_intelligence_profile",
+    source_version: profile.version || "1.0",
+    generated_at: new Date().toISOString(),
+    business_name: profile.identity?.businessName || "",
+    business_health: {
+      status: healthStatus,
+      rationale: [
+        rating ? `${rating} average rating` : "Rating data incomplete",
+        reviews ? `${reviews} reviews` : "Review volume incomplete",
+        profile.performance?.revenueTrend ? `Revenue trend: ${profile.performance.revenueTrend}` : "Revenue trend incomplete",
+      ],
+    },
+    marketing_maturity: {
+      status: maturityStatus,
+      rationale: [
+        marketingMix.promotion.evidence,
+        journey.awareness.evidence,
+        profile.marketing?.runningAds ? `Ads: ${profile.marketing.runningAds}` : "Advertising status incomplete",
+      ],
+    },
+    operational_readiness: {
+      status: readinessStatus,
+      rationale: [
+        profile.resources?.availableTime ? `Available time: ${profile.resources.availableTime}` : "Available time incomplete",
+        profile.resources?.staffAvailable ? `Staff: ${profile.resources.staffAvailable}` : "Staff capacity incomplete",
+        profile.resources?.canCreateVideos ? `Video capacity: ${profile.resources.canCreateVideos}` : "Video capacity incomplete",
+      ],
+    },
+    biggest_strength: biggestStrength,
+    biggest_weakness: biggestWeakness,
+    biggest_opportunity: biggestOpportunity,
+    biggest_threat: biggestThreat,
+    highest_priority_problem: highestPriorityProblem,
+    urgency: {
+      level: urgencyLevel,
+      reason: urgencyLevel === "Medium"
+        ? "Multiple constraints are visible or revenue pressure is present."
+        : "The profile shows a healthy base with no critical pressure signal.",
+    },
+    confidence: {
+      level: confidenceScore >= 80 ? "High" : confidenceScore >= 60 ? "Medium" : "Low",
+      score: confidenceScore,
+      reason: "Confidence is based on profile completeness and the strength of documented reputation, marketing and operating signals.",
+    },
+    data_quality: dataQuality,
+  };
+}
+
+function evidenceKnowledgeLibraries() {
+  return {
+    campaigns: [
+      {
+        id: "evidence-campaign-google-review-engine",
+        name: "Google Review Engine",
+        industry: ["Restaurant", "Food & Beverage"],
+        goals: ["More Reviews", "More Brand Awareness", "More Reservations"],
+        problems: ["review", "social proof", "trust", "visibility"],
+        audience: ["Families", "Professionals", "Young Adults"],
+        budget: ["Low", "Medium"],
+        seasons: ["Always", "Weekends", "Summer"],
+        platforms: ["Google", "WhatsApp"],
+        resources: ["Staff", "QR", "5 minutes"],
+        psychology: ["Social Proof", "Trust", "Reciprocity"],
+        benchmarks: ["Google reviews"],
+        expectedImpact: "More reviews and stronger local trust.",
+        reason: "Strong fit for restaurants with good satisfaction signals and review acquisition gaps.",
+      },
+      {
+        id: "evidence-campaign-signature-reel-series",
+        name: "Signature Reel Series",
+        industry: ["Restaurant", "Food & Beverage"],
+        goals: ["More Brand Awareness", "More Reservations", "More Revenue"],
+        problems: ["visibility", "visual content", "awareness"],
+        audience: ["Young Adults", "Families", "Professionals"],
+        budget: ["Low", "Medium"],
+        seasons: ["Always", "Summer", "Weekends"],
+        platforms: ["Instagram", "TikTok"],
+        resources: ["Video", "15 minutes", "Owner"],
+        psychology: ["Curiosity", "Authority", "Trust"],
+        benchmarks: ["Posting frequency", "Engagement"],
+        expectedImpact: "More product visibility and stronger perceived quality.",
+        reason: "Strong fit when the product is visual and content frequency is underused.",
+      },
+      {
+        id: "evidence-campaign-whatsapp-vip",
+        name: "WhatsApp VIP Customer Loop",
+        industry: ["Restaurant", "Cafe", "Food & Beverage", "Beauty", "Fitness"],
+        goals: ["More Repeat Customers", "More Revenue"],
+        problems: ["retention", "customer ownership", "returning customer"],
+        audience: ["Families", "Professionals", "Young Adults"],
+        budget: ["Low"],
+        seasons: ["Always", "Ramadan", "Weekends"],
+        platforms: ["WhatsApp"],
+        resources: ["WhatsApp", "10 minutes"],
+        psychology: ["Community", "Reciprocity", "Trust"],
+        benchmarks: ["Customer retention"],
+        expectedImpact: "Better customer ownership and repeat visits.",
+        reason: "Strong fit when the diagnosis shows weak retention or incomplete customer ownership.",
+      },
+      {
+        id: "evidence-campaign-weekend-family-menu",
+        name: "Weekend Family Menu",
+        industry: ["Restaurant", "Cafe", "Food & Beverage"],
+        goals: ["More Revenue", "More Reservations", "More Orders"],
+        problems: ["weekend demand", "average order value", "quiet days"],
+        audience: ["Families", "Groups"],
+        budget: ["Low", "Medium"],
+        seasons: ["Weekends", "Summer", "Ramadan", "Always"],
+        platforms: ["Instagram", "WhatsApp", "Google"],
+        resources: ["Photos", "Staff"],
+        psychology: ["Convenience", "Social Proof", "Community"],
+        benchmarks: ["Average order value"],
+        expectedImpact: "Higher basket size and easier group decisions.",
+        reason: "Strong fit when families and weekend demand are visible in the diagnosis.",
+      },
+    ],
+    offers: [
+      {
+        id: "evidence-offer-family-menu",
+        name: "Family Menu Structure",
+        industry: ["Restaurant", "Cafe"],
+        goals: ["More Revenue", "More Reservations"],
+        problems: ["average order value", "weekend demand"],
+        audience: ["Families", "Groups"],
+        budget: ["Low"],
+        seasons: ["Weekends", "Ramadan", "Summer"],
+        platforms: ["Instagram", "WhatsApp"],
+        resources: ["Menu", "Photos"],
+        psychology: ["Convenience", "Community"],
+        expectedImpact: "Clearer choice for groups and stronger basket value.",
+        reason: "Matches businesses where group visits and shared meals are part of demand.",
+      },
+      {
+        id: "evidence-offer-review-thank-you",
+        name: "Review Thank-You Moment",
+        industry: ["Restaurant", "Cafe", "Beauty", "Fitness"],
+        goals: ["More Reviews", "More Brand Awareness"],
+        problems: ["review", "social proof", "trust"],
+        audience: ["Families", "Professionals", "Young Adults"],
+        budget: ["Low"],
+        seasons: ["Always"],
+        platforms: ["Google", "WhatsApp"],
+        resources: ["Staff", "QR"],
+        psychology: ["Reciprocity", "Trust"],
+        expectedImpact: "More review requests without discount pressure.",
+        reason: "Fits satisfied customer bases where the missing element is the request process.",
+      },
+      {
+        id: "evidence-offer-weekday-reason",
+        name: "Weekday Visit Reason",
+        industry: ["Restaurant", "Cafe"],
+        goals: ["More Orders", "More Revenue"],
+        problems: ["weekday", "demand imbalance", "quiet days"],
+        audience: ["Professionals", "Students"],
+        budget: ["Low"],
+        seasons: ["Always", "Back to School"],
+        platforms: ["Instagram", "WhatsApp"],
+        resources: ["Menu", "Photos"],
+        psychology: ["Convenience", "Urgency"],
+        expectedImpact: "Better capacity use on weaker days.",
+        reason: "Fits businesses with known weak days and stronger weekend traffic.",
+      },
+    ],
+    hooks: [
+      {
+        id: "evidence-hook-before-you-choose",
+        name: "Before you choose where to eat tonight",
+        industry: ["Restaurant", "Cafe"],
+        goals: ["More Reservations", "More Brand Awareness"],
+        problems: ["consideration", "visibility", "trust"],
+        audience: ["Families", "Professionals", "Young Adults"],
+        budget: ["Low"],
+        seasons: ["Always", "Weekends"],
+        platforms: ["Instagram", "TikTok"],
+        resources: ["Video"],
+        psychology: ["Curiosity", "Trust"],
+        expectedImpact: "Frames the business during the customer decision moment.",
+        reason: "Matches restaurants that need visibility at the consideration stage.",
+      },
+      {
+        id: "evidence-hook-customers-say-this",
+        name: "What customers mention most",
+        industry: ["Restaurant", "Cafe", "Beauty", "Fitness"],
+        goals: ["More Reviews", "More Brand Awareness"],
+        problems: ["social proof", "trust", "review"],
+        audience: ["Families", "Professionals"],
+        budget: ["Low"],
+        seasons: ["Always"],
+        platforms: ["Google", "Instagram"],
+        resources: ["Reviews", "Staff"],
+        psychology: ["Social Proof", "Authority"],
+        expectedImpact: "Turns existing satisfaction into visible proof.",
+        reason: "Matches businesses with strong rating or customer satisfaction signals.",
+      },
+      {
+        id: "evidence-hook-made-in-front-of-you",
+        name: "Made in front of you",
+        industry: ["Restaurant", "Cafe", "Food & Beverage"],
+        goals: ["More Brand Awareness", "More Reservations"],
+        problems: ["visual content", "differentiation"],
+        audience: ["Young Adults", "Families"],
+        budget: ["Low"],
+        seasons: ["Always"],
+        platforms: ["Instagram", "TikTok"],
+        resources: ["Video"],
+        psychology: ["Authority", "Curiosity", "Trust"],
+        expectedImpact: "Highlights quality and craft without heavy explanation.",
+        reason: "Matches businesses with strong product preparation or premium positioning.",
+      },
+    ],
+    psychology: [
+      {
+        id: "evidence-psych-social-proof",
+        name: "Social Proof",
+        problems: ["review", "trust", "social proof", "visibility"],
+        goals: ["More Reviews", "More Reservations", "More Brand Awareness"],
+        expectedImpact: "Reduces hesitation before visit or booking.",
+        reason: "Most useful when the diagnosis shows strong satisfaction but underused public proof.",
+      },
+      {
+        id: "evidence-psych-community",
+        name: "Community",
+        problems: ["retention", "customer ownership", "repeat"],
+        goals: ["More Repeat Customers", "More Revenue"],
+        expectedImpact: "Creates a reason for customers to stay connected.",
+        reason: "Most useful when WhatsApp or local customer habits are visible.",
+      },
+      {
+        id: "evidence-psych-authority",
+        name: "Authority",
+        problems: ["premium", "differentiation", "trust"],
+        goals: ["More Brand Awareness", "More Revenue"],
+        expectedImpact: "Strengthens perceived quality and expertise.",
+        reason: "Most useful when positioning is premium or product quality is a strength.",
+      },
+      {
+        id: "evidence-psych-urgency",
+        name: "Urgency",
+        problems: ["seasonal", "weekend", "local event"],
+        goals: ["More Orders", "More Reservations"],
+        expectedImpact: "Helps customers act during relevant moments.",
+        reason: "Most useful when timing, events or seasonal demand are present.",
+      },
+    ],
+    competitorInsights: [
+      {
+        id: "evidence-competitor-review-gap",
+        name: "Review visibility gap",
+        industry: ["Restaurant", "Cafe"],
+        problems: ["review", "trust", "visibility"],
+        goals: ["More Reviews", "More Brand Awareness"],
+        expectedImpact: "Stronger Google comparison before customers choose.",
+        reason: "Similar local businesses compete strongly on review volume and rating.",
+      },
+      {
+        id: "evidence-competitor-visual-format",
+        name: "Short vertical product videos",
+        industry: ["Restaurant", "Cafe", "Beauty", "Fitness"],
+        problems: ["visual content", "awareness", "differentiation"],
+        goals: ["More Brand Awareness", "More Reservations"],
+        expectedImpact: "Better first impression in fast-scrolling feeds.",
+        reason: "Winning local content styles often show the product or experience immediately.",
+      },
+      {
+        id: "evidence-competitor-whatsapp-path",
+        name: "WhatsApp reservation path",
+        industry: ["Restaurant", "Cafe", "Beauty", "Fitness"],
+        problems: ["customer ownership", "lead response", "retention"],
+        goals: ["More Reservations", "More Repeat Customers"],
+        expectedImpact: "Less friction between interest and contact.",
+        reason: "Many Moroccan service businesses use WhatsApp as the practical conversion path.",
+      },
+    ],
+    benchmarks: [
+      {
+        id: "evidence-benchmark-google-reviews",
+        name: "Google review benchmark",
+        industry: ["Restaurant", "Cafe"],
+        metric: "Reviews",
+        average: 250,
+        strong: 500,
+        problems: ["review", "social proof", "trust"],
+        goals: ["More Reviews", "More Brand Awareness"],
+        expectedImpact: "Clarifies whether public proof is below target.",
+        reason: "Review volume affects trust and local discovery for restaurants.",
+      },
+      {
+        id: "evidence-benchmark-posting-frequency",
+        name: "Instagram posting frequency benchmark",
+        industry: ["Restaurant", "Cafe"],
+        metric: "Posting frequency",
+        average: "2-3 posts per week",
+        strong: "4+ useful posts per week",
+        problems: ["visibility", "visual content", "awareness"],
+        goals: ["More Brand Awareness", "More Reservations"],
+        expectedImpact: "Shows whether visibility activity is underused.",
+        reason: "Restaurants with visual products need consistent visibility signals.",
+      },
+      {
+        id: "evidence-benchmark-retention-measurement",
+        name: "Returning customer measurement",
+        industry: ["Restaurant", "Cafe", "Beauty", "Fitness"],
+        metric: "Returning customers",
+        average: "Tracked manually or through customer list",
+        strong: "Segmented repeat customer base",
+        problems: ["retention", "customer ownership"],
+        goals: ["More Repeat Customers", "More Revenue"],
+        expectedImpact: "Shows whether customer relationship data is strong enough.",
+        reason: "Retention cannot be improved reliably if returning customers are unknown.",
+      },
+    ],
+    seasonality: [
+      {
+        id: "evidence-season-weekends",
+        name: "Weekend demand",
+        industry: ["Restaurant", "Cafe"],
+        seasons: ["Weekends", "Always"],
+        problems: ["weekend", "demand imbalance", "family"],
+        goals: ["More Revenue", "More Reservations"],
+        expectedImpact: "Captures the strongest natural demand window.",
+        reason: "Fits restaurants and cafes with family or group behavior.",
+      },
+      {
+        id: "evidence-season-summer",
+        name: "Summer visibility",
+        industry: ["Restaurant", "Cafe", "Beauty", "Fitness"],
+        seasons: ["Summer"],
+        problems: ["seasonal", "visibility", "tourist"],
+        goals: ["More Brand Awareness", "More Revenue"],
+        expectedImpact: "Matches outdoor, social and tourist-driven demand.",
+        reason: "Summer changes behavior and can increase local discovery moments.",
+      },
+      {
+        id: "evidence-season-ramadan",
+        name: "Ramadan family timing",
+        industry: ["Restaurant", "Cafe", "Food & Beverage"],
+        seasons: ["Ramadan"],
+        problems: ["seasonal", "family", "timing"],
+        goals: ["More Reservations", "More Revenue"],
+        expectedImpact: "Aligns with family habits and meal planning.",
+        reason: "Ramadan changes timing, purchase intent and group behavior in Morocco.",
+      },
+      {
+        id: "evidence-season-football",
+        name: "Football event traffic",
+        industry: ["Restaurant", "Cafe"],
+        seasons: ["Football Events"],
+        problems: ["local event", "community", "evening"],
+        goals: ["More Reservations", "More Revenue"],
+        expectedImpact: "Creates group visit intent around shared moments.",
+        reason: "Football events can drive evening traffic for hospitality businesses.",
+      },
+    ],
+    content: [
+      {
+        id: "evidence-content-product-closeup",
+        name: "Product close-up reel",
+        industry: ["Restaurant", "Cafe", "Food & Beverage"],
+        goals: ["More Brand Awareness", "More Reservations"],
+        problems: ["visual content", "awareness", "premium"],
+        audience: ["Young Adults", "Families"],
+        budget: ["Low"],
+        seasons: ["Always"],
+        platforms: ["Instagram", "TikTok"],
+        resources: ["Video"],
+        psychology: ["Curiosity", "Trust"],
+        expectedImpact: "Makes the product desirable before the visit.",
+        reason: "Matches businesses with visual products and premium presentation.",
+      },
+      {
+        id: "evidence-content-customer-proof",
+        name: "Customer proof story",
+        industry: ["Restaurant", "Cafe", "Beauty", "Fitness"],
+        goals: ["More Reviews", "More Brand Awareness"],
+        problems: ["social proof", "trust", "review"],
+        audience: ["Families", "Professionals"],
+        budget: ["Low"],
+        seasons: ["Always"],
+        platforms: ["Instagram", "Google"],
+        resources: ["Reviews", "Stories"],
+        psychology: ["Social Proof", "Trust"],
+        expectedImpact: "Turns existing satisfaction into visible trust.",
+        reason: "Matches businesses with positive reviews and underused advocacy.",
+      },
+      {
+        id: "evidence-content-behind-scenes",
+        name: "Behind-the-scenes preparation",
+        industry: ["Restaurant", "Cafe", "Beauty", "Fitness"],
+        goals: ["More Brand Awareness", "More Revenue"],
+        problems: ["differentiation", "authority", "visual content"],
+        audience: ["Young Adults", "Professionals"],
+        budget: ["Low"],
+        seasons: ["Always"],
+        platforms: ["Instagram", "TikTok"],
+        resources: ["Video", "Staff"],
+        psychology: ["Authority", "Trust", "Curiosity"],
+        expectedImpact: "Shows quality and process without needing a sales pitch.",
+        reason: "Matches businesses where craft, atmosphere or team quality matters.",
+      },
+    ],
+  };
+}
+
+function buildEvidenceMatchingInput(diagnosis, profile = defaultBusinessIntelligenceProfile()) {
+  const platforms = [
+    biKnown(profile.marketing?.instagram) ? "Instagram" : "",
+    biKnown(profile.marketing?.tiktok) ? "TikTok" : "",
+    biIncludes(profile, ["marketing.whatsapp"], ["available", "yes"]) ? "WhatsApp" : "",
+    biIncludes(profile, ["marketing.googleBusinessProfile"], ["active", "yes"]) ? "Google" : "",
+  ].filter(Boolean);
+  const resources = [
+    biIncludes(profile, ["resources.canCreatePhotos"], ["yes", "sometimes"]) ? "Photos" : "",
+    biIncludes(profile, ["resources.canCreateVideos"], ["yes", "sometimes"]) ? "Video" : "",
+    biIncludes(profile, ["resources.staffAvailable"], ["yes", "sometimes"]) ? "Staff" : "",
+    profile.resources?.availableTime || "",
+  ].filter(Boolean);
+  return {
+    ...diagnosis,
+    matching_context: {
+      industry: profile.identity?.industry || "",
+      business_type: profile.identity?.businessCategory || "",
+      primary_goal: profile.goals?.primaryGoal || "",
+      secondary_goal: profile.goals?.secondaryGoal || "",
+      target_audience: profile.customers?.targetAudience || profile.customers?.customerSegments || "",
+      budget: profile.resources?.monthlyMarketingBudget || profile.resources?.advertisingBudget ? "Known" : "Low",
+      season: profile.context?.opportunities || profile.products?.seasonalProducts || "",
+      resources,
+      available_platforms: platforms,
+      business_constraints: profile.context?.constraints || "",
+      products: profile.products?.bestSellingProducts || "",
+      positioning: profile.identity?.businessCategory || profile.competition?.biggestCompetitiveAdvantage || "",
+    },
+  };
+}
+
+function evidenceTokens(value) {
+  return biText(value)
+    .replace(/[^a-z0-9à-ÿ]+/gi, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 2);
+}
+
+function evidenceMatchAny(source, candidates = []) {
+  const sourceText = biText(source);
+  return candidates.some((candidate) => sourceText.includes(String(candidate).toLowerCase()));
+}
+
+function evidenceContextText(input) {
+  return [
+    input.business_health?.status,
+    input.marketing_maturity?.status,
+    input.operational_readiness?.status,
+    input.biggest_strength?.label,
+    input.biggest_strength?.evidence,
+    input.biggest_weakness?.label,
+    input.biggest_weakness?.evidence,
+    input.biggest_opportunity?.label,
+    input.biggest_opportunity?.evidence,
+    input.biggest_threat?.label,
+    input.biggest_threat?.evidence,
+    input.highest_priority_problem?.label,
+    input.highest_priority_problem?.evidence,
+    input.matching_context?.primary_goal,
+    input.matching_context?.secondary_goal,
+    input.matching_context?.target_audience,
+    input.matching_context?.season,
+    input.matching_context?.business_constraints,
+    input.matching_context?.products,
+    input.matching_context?.positioning,
+  ].filter(biKnown).join(" ");
+}
+
+function scoreEvidenceItem(item, input) {
+  const context = input.matching_context || {};
+  const diagnosisText = evidenceContextText(input);
+  const itemText = JSON.stringify(item);
+  const textTokens = evidenceTokens(diagnosisText);
+  const sharedTokenScore = Math.min(textTokens.filter((token) => biText(itemText).includes(token)).length, 8) * 2;
+
+  const dimensions = [
+    ["goal_match", 15, evidenceMatchAny(context.primary_goal, item.goals) || evidenceMatchAny(context.secondary_goal, item.goals)],
+    ["problem_match", 18, evidenceMatchAny(diagnosisText, item.problems)],
+    ["audience_match", 10, evidenceMatchAny(context.target_audience, item.audience)],
+    ["budget_match", 8, evidenceMatchAny(context.budget, item.budget) || !item.budget],
+    ["season_match", 8, evidenceMatchAny(context.season, item.seasons) || evidenceMatchAny(diagnosisText, item.seasons) || item.seasons?.includes("Always")],
+    ["platform_match", 10, evidenceMatchAny(context.available_platforms, item.platforms)],
+    ["resource_match", 8, evidenceMatchAny(context.resources, item.resources)],
+    ["psychology_match", 8, evidenceMatchAny(diagnosisText, item.psychology)],
+    ["benchmark_match", 8, evidenceMatchAny(diagnosisText, item.benchmarks) || evidenceMatchAny(item.name, ["benchmark"])],
+    ["expected_impact", 7, biKnown(item.expectedImpact)],
+  ];
+
+  const dimensionScores = Object.fromEntries(dimensions.map(([name, points, passed]) => [name, passed ? points : 0]));
+  const baseScore = Object.values(dimensionScores).reduce((sum, value) => sum + value, 0);
+  const matchingScore = Math.min(100, Math.round(baseScore + sharedTokenScore));
+  const strongestDimensions = dimensions
+    .filter(([name]) => dimensionScores[name] > 0)
+    .map(([name]) => name.replaceAll("_", " "));
+  return {
+    id: item.id,
+    title: item.name,
+    matching_score: matchingScore,
+    reason: item.reason || "Matched against the current business diagnosis.",
+    expected_impact: item.expectedImpact || "",
+    strongest_dimensions: strongestDimensions.slice(0, 5),
+  };
+}
+
+function rankEvidence(library, input, limit = 3) {
+  return library
+    .map((item) => scoreEvidenceItem(item, input))
+    .filter((item) => item.matching_score > 0)
+    .sort((a, b) => b.matching_score - a.matching_score)
+    .slice(0, limit);
+}
+
+function runEvidenceMatchingEngine(businessDiagnosis = {}) {
+  const input = businessDiagnosis?.diagnosis_type === "business_diagnosis" || businessDiagnosis?.matching_context
+    ? businessDiagnosis
+    : { diagnosis_type: "business_diagnosis", ...businessDiagnosis };
+  const libraries = evidenceKnowledgeLibraries();
+  return {
+    evidence_type: "ranked_evidence",
+    version: "1.0",
+    source: "business_diagnosis",
+    generated_at: new Date().toISOString(),
+    diagnosis_summary: {
+      business_health: input.business_health?.status || "",
+      marketing_maturity: input.marketing_maturity?.status || "",
+      biggest_strength: input.biggest_strength?.label || "",
+      biggest_weakness: input.biggest_weakness?.label || "",
+      biggest_opportunity: input.biggest_opportunity?.label || "",
+      highest_priority_problem: input.highest_priority_problem?.label || "",
+      urgency: input.urgency?.level || "",
+      confidence: input.confidence?.level || "",
+      data_quality: input.data_quality?.level || "",
+    },
+    top_matching_campaigns: rankEvidence(libraries.campaigns, input, 3),
+    top_matching_offers: rankEvidence(libraries.offers, input, 3),
+    top_matching_hooks: rankEvidence(libraries.hooks, input, 3),
+    top_matching_psychology: rankEvidence(libraries.psychology, input, 4),
+    top_matching_content: rankEvidence(libraries.content, input, 3),
+    top_matching_benchmarks: rankEvidence(libraries.benchmarks, input, 3),
+    top_competitor_insights: rankEvidence(libraries.competitorInsights, input, 3),
+    top_seasonality_evidence: rankEvidence(libraries.seasonality, input, 3),
+  };
+}
+
+function normalizeSoloBrainPhase(phase = "learning") {
+  const key = String(phase || "learning").trim().toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
+  const normalized = SOLO_BRAIN_PHASE_ALIASES[key] || key;
+  return SOLO_BRAIN_PHASES.includes(normalized) ? normalized : "learning";
+}
+
+function soloBrainPhaseIndex(phase) {
+  return SOLO_BRAIN_PHASES.indexOf(normalizeSoloBrainPhase(phase));
+}
+
+function soloBrainShouldRun(targetPhase, phase) {
+  return soloBrainPhaseIndex(phase) <= soloBrainPhaseIndex(targetPhase);
+}
+
+function soloBrainStructuredObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value);
+}
+
+function validateBusinessIntelligenceProfile(profileInput) {
+  const source = profileInput || {};
+  const profile = deepMergeProfile(defaultBusinessIntelligenceProfile(), source);
+  const missingData = [];
+  if (!source.identity?.businessName) missingData.push("business_name");
+  if (!source.identity?.industry) missingData.push("industry");
+  if (!source.identity?.businessCategory) missingData.push("business_category");
+  if (!source.identity?.city) missingData.push("city");
+  if (!source.goals?.primaryGoal) missingData.push("primary_goal");
+  if (!source.customers?.targetAudience) missingData.push("target_audience");
+  if (!source.performance?.reviews) missingData.push("reviews");
+  if (!source.performance?.averageRating) missingData.push("average_rating");
+  return {
+    profile_type: "business_intelligence_profile",
+    version: "1.0",
+    generated_at: new Date().toISOString(),
+    data_quality: {
+      missing_fields: missingData,
+      can_continue: true,
+      confidence_penalty: Math.min(missingData.length * 5, 35),
+    },
+    profile,
+  };
+}
+
+function createSoloBrainEnvelope(targetPhase, outputs, errors = [], missingData = []) {
+  return {
+    orchestrator_type: "solo_brain_orchestrator",
+    version: "1.0",
+    target_phase: normalizeSoloBrainPhase(targetPhase),
+    completed_phases: SOLO_BRAIN_PHASES.slice(0, soloBrainPhaseIndex(targetPhase) + 1),
+    generated_at: new Date().toISOString(),
+    data_flow: {
+      businessIntelligenceProfile: Boolean(outputs.businessIntelligenceProfile),
+      businessDiagnosis: Boolean(outputs.businessDiagnosis),
+      rankedEvidence: Boolean(outputs.rankedEvidence),
+      bestNextMove: Boolean(outputs.bestNextMove),
+      campaignPackage: Boolean(outputs.campaignPackage),
+      executionPlan: Boolean(outputs.executionPlan),
+      performanceReport: Boolean(outputs.performanceReport),
+      learningMemory: Boolean(outputs.learningMemory),
+    },
+    safeguards: {
+      no_fact_invention: true,
+      structured_outputs_only: true,
+      phase_internals_hidden: true,
+      missing_data_handled: true,
+    },
+    missing_data: missingData,
+    errors,
+  };
+}
+
+function runSoloBrainOrchestrator(input = {}) {
+  const targetPhase = normalizeSoloBrainPhase(input.targetPhase || input.mode || "learning");
+  const errors = [];
+  const outputs = {};
+  const profileValidation = validateBusinessIntelligenceProfile(
+    input.businessIntelligenceProfile || input.profile || input.businessProfile || defaultBusinessIntelligenceProfile()
+  );
+  outputs.businessIntelligenceProfile = profileValidation.profile;
+
+  try {
+    if (soloBrainShouldRun(targetPhase, "understanding") || soloBrainShouldRun(targetPhase, "diagnosis")) {
+      outputs.businessDiagnosis = soloBrainStructuredObject(input.businessDiagnosis)
+        ? input.businessDiagnosis
+        : runBusinessUnderstandingEngine(outputs.businessIntelligenceProfile);
+    }
+
+    if (soloBrainShouldRun(targetPhase, "evidence")) {
+      const diagnosis = outputs.businessDiagnosis || input.businessDiagnosis || runBusinessUnderstandingEngine(outputs.businessIntelligenceProfile);
+      outputs.businessDiagnosis = diagnosis;
+      outputs.rankedEvidence = soloBrainStructuredObject(input.rankedEvidence)
+        ? input.rankedEvidence
+        : runEvidenceMatchingEngine(buildEvidenceMatchingInput(diagnosis, outputs.businessIntelligenceProfile));
+    }
+
+    if (soloBrainShouldRun(targetPhase, "decision")) {
+      const diagnosis = outputs.businessDiagnosis || input.businessDiagnosis || runBusinessUnderstandingEngine(outputs.businessIntelligenceProfile);
+      const evidence = outputs.rankedEvidence || input.rankedEvidence || runEvidenceMatchingEngine(buildEvidenceMatchingInput(diagnosis, outputs.businessIntelligenceProfile));
+      outputs.businessDiagnosis = diagnosis;
+      outputs.rankedEvidence = evidence;
+      outputs.bestNextMove = soloBrainStructuredObject(input.bestNextMove)
+        ? input.bestNextMove
+        : runDecisionEngine(diagnosis, evidence);
+    }
+
+    if (soloBrainShouldRun(targetPhase, "campaign")) {
+      const diagnosis = outputs.businessDiagnosis || input.businessDiagnosis || runBusinessUnderstandingEngine(outputs.businessIntelligenceProfile);
+      const evidence = outputs.rankedEvidence || input.rankedEvidence || runEvidenceMatchingEngine(buildEvidenceMatchingInput(diagnosis, outputs.businessIntelligenceProfile));
+      const decision = outputs.bestNextMove || input.bestNextMove || runDecisionEngine(diagnosis, evidence);
+      outputs.businessDiagnosis = diagnosis;
+      outputs.rankedEvidence = evidence;
+      outputs.bestNextMove = decision;
+      outputs.campaignPackage = soloBrainStructuredObject(input.campaignPackage)
+        ? input.campaignPackage
+        : runCampaignGenerationEngine(outputs.businessIntelligenceProfile, diagnosis, decision, evidence);
+    }
+
+    if (soloBrainShouldRun(targetPhase, "execution")) {
+      const diagnosis = outputs.businessDiagnosis || input.businessDiagnosis || runBusinessUnderstandingEngine(outputs.businessIntelligenceProfile);
+      const evidence = outputs.rankedEvidence || input.rankedEvidence || runEvidenceMatchingEngine(buildEvidenceMatchingInput(diagnosis, outputs.businessIntelligenceProfile));
+      const decision = outputs.bestNextMove || input.bestNextMove || runDecisionEngine(diagnosis, evidence);
+      const campaign = outputs.campaignPackage || input.campaignPackage || runCampaignGenerationEngine(outputs.businessIntelligenceProfile, diagnosis, decision, evidence);
+      outputs.businessDiagnosis = diagnosis;
+      outputs.rankedEvidence = evidence;
+      outputs.bestNextMove = decision;
+      outputs.campaignPackage = campaign;
+      outputs.executionPlan = soloBrainStructuredObject(input.executionPlan)
+        ? input.executionPlan
+        : runExecutionManager(outputs.businessIntelligenceProfile, diagnosis, decision, campaign);
+    }
+
+    if (soloBrainShouldRun(targetPhase, "performance")) {
+      const diagnosis = outputs.businessDiagnosis || input.businessDiagnosis || runBusinessUnderstandingEngine(outputs.businessIntelligenceProfile);
+      const evidence = outputs.rankedEvidence || input.rankedEvidence || runEvidenceMatchingEngine(buildEvidenceMatchingInput(diagnosis, outputs.businessIntelligenceProfile));
+      const decision = outputs.bestNextMove || input.bestNextMove || runDecisionEngine(diagnosis, evidence);
+      const campaign = outputs.campaignPackage || input.campaignPackage || runCampaignGenerationEngine(outputs.businessIntelligenceProfile, diagnosis, decision, evidence);
+      const execution = outputs.executionPlan || input.executionPlan || runExecutionManager(outputs.businessIntelligenceProfile, diagnosis, decision, campaign);
+      outputs.businessDiagnosis = diagnosis;
+      outputs.rankedEvidence = evidence;
+      outputs.bestNextMove = decision;
+      outputs.campaignPackage = campaign;
+      outputs.executionPlan = execution;
+      outputs.performanceReport = soloBrainStructuredObject(input.performanceReport)
+        ? input.performanceReport
+        : runPerformanceMeasurementEngine(outputs.businessIntelligenceProfile, diagnosis, decision, campaign, execution, input.businessKpis || input.campaignResults || { results: [] });
+    }
+
+    if (soloBrainShouldRun(targetPhase, "learning")) {
+      const diagnosis = outputs.businessDiagnosis || input.businessDiagnosis || runBusinessUnderstandingEngine(outputs.businessIntelligenceProfile);
+      const evidence = outputs.rankedEvidence || input.rankedEvidence || runEvidenceMatchingEngine(buildEvidenceMatchingInput(diagnosis, outputs.businessIntelligenceProfile));
+      const decision = outputs.bestNextMove || input.bestNextMove || runDecisionEngine(diagnosis, evidence);
+      const campaign = outputs.campaignPackage || input.campaignPackage || runCampaignGenerationEngine(outputs.businessIntelligenceProfile, diagnosis, decision, evidence);
+      const execution = outputs.executionPlan || input.executionPlan || runExecutionManager(outputs.businessIntelligenceProfile, diagnosis, decision, campaign);
+      const performance = outputs.performanceReport || input.performanceReport || runPerformanceMeasurementEngine(outputs.businessIntelligenceProfile, diagnosis, decision, campaign, execution, input.businessKpis || input.campaignResults || { results: [] });
+      outputs.businessDiagnosis = diagnosis;
+      outputs.rankedEvidence = evidence;
+      outputs.bestNextMove = decision;
+      outputs.campaignPackage = campaign;
+      outputs.executionPlan = execution;
+      outputs.performanceReport = performance;
+      outputs.learningMemory = soloBrainStructuredObject(input.learningMemory)
+        ? input.learningMemory
+        : runLearningEngine(outputs.businessIntelligenceProfile, diagnosis, decision, campaign, execution, performance, {
+          results: input.campaignResults?.results || input.businessKpis?.results || [],
+          previousLearningMemory: input.previousLearningMemory || null,
+        });
+    }
+  } catch (error) {
+    errors.push({
+      phase: targetPhase,
+      message: error?.message || "Unknown SOLO Brain orchestration error",
+    });
+  }
+
+  return {
+    ...outputs,
+    orchestration: createSoloBrainEnvelope(targetPhase, outputs, errors, profileValidation.data_quality.missing_fields),
+  };
+}
+
+function buildSoloBrainOutputs(profile = defaultBusinessIntelligenceProfile()) {
+  const brainRun = runSoloBrainOrchestrator({
+    businessIntelligenceProfile: profile,
+    targetPhase: "learning",
+    businessKpis: { results: [] },
+  });
+  return {
+    businessDiagnosis: brainRun.businessDiagnosis,
+    rankedEvidence: brainRun.rankedEvidence,
+    bestNextMove: brainRun.bestNextMove,
+    campaignPackage: brainRun.campaignPackage,
+    executionPlan: brainRun.executionPlan,
+    performanceReport: brainRun.performanceReport,
+    learningMemory: brainRun.learningMemory,
+    orchestration: brainRun.orchestration,
+  };
+}
+
+function isDeveloperDemoMode() {
+  const search = new URLSearchParams(window.location?.search || "");
+  const hostname = window.location?.hostname || "";
+  return window.location?.protocol === "file:"
+    || hostname === "localhost"
+    || hostname === "127.0.0.1"
+    || search.has("dev")
+    || search.get("solo_dev") === "1"
+    || safeStorageGet(localStorage, "solo-dev-mode") === "1";
+}
+
+function soloBrainDeveloperFakeData() {
+  return {
+    businessName: "Solo Pizzeria",
+    industry: "Restaurant",
+    city: "Casablanca",
+    primaryGoal: "Increase weekend orders",
+    targetAudience: ["families", "young professionals"],
+    budget: "low",
+    platforms: ["Instagram", "WhatsApp", "Google Business"],
+    strengths: ["strong reviews", "authentic product"],
+    weaknesses: ["low posting frequency", "no current offer"],
+    opportunities: ["weekend demand", "Google Business unused"],
+    constraints: ["limited time", "low budget"],
+    averageCustomerSpend: 100,
+    subscriptionPrice: 1000,
+  };
+}
+
+function soloBrainDeveloperProfile(fakeData = soloBrainDeveloperFakeData()) {
+  const base = defaultBusinessIntelligenceProfile();
+  return deepMergeProfile(base, {
+    updatedAt: new Date().toISOString(),
+    identity: {
+      businessName: fakeData.businessName,
+      industry: fakeData.industry,
+      businessCategory: "Restaurant",
+      city: fakeData.city,
+      numberOfLocations: 1,
+    },
+    goals: {
+      primaryGoal: fakeData.primaryGoal,
+      currentBiggestChallenge: fakeData.weaknesses.join(", "),
+      successMetric: "Weekend orders",
+      desiredTimeHorizon: "This month",
+    },
+    customers: {
+      targetAudience: fakeData.targetAudience.join(", "),
+      customerSegments: fakeData.targetAudience.join(", "),
+      buyingMotivations: "Authentic product, social dining, family weekend meals",
+      peakDays: "Friday, Saturday, Sunday",
+      peakHours: "19:00-22:00",
+    },
+    products: {
+      averageOrderValue: fakeData.averageCustomerSpend,
+    },
+    marketing: {
+      instagram: "@solopizzeria",
+      whatsapp: fakeData.platforms.includes("WhatsApp") ? "Available" : "Unknown",
+      googleBusinessProfile: fakeData.platforms.includes("Google Business") ? "Active" : "Unknown",
+      postingFrequency: "Low posting frequency",
+      runningAds: "No",
+      previousCampaigns: "",
+      currentContentTypes: "Authentic product visuals",
+    },
+    resources: {
+      monthlyMarketingBudget: fakeData.budget,
+      advertisingBudget: fakeData.budget,
+      availableTime: "Limited time",
+      canCreatePhotos: "Yes",
+      canCreateVideos: "Sometimes",
+      staffAvailable: "Sometimes",
+      ownerPersonallyInvolved: "Sometimes",
+    },
+    performance: {
+      revenueTrend: "Stable",
+      reviews: fakeData.strengths.includes("strong reviews") ? 334 : "",
+      averageRating: fakeData.strengths.includes("strong reviews") ? 4.5 : "",
+      bestPerformingDays: "Weekend",
+      weakestDays: "Weekdays",
+    },
+    competition: {
+      biggestCompetitiveAdvantage: fakeData.strengths.join(", "),
+      biggestWeaknessComparedToCompetitors: fakeData.weaknesses.join(", "),
+    },
+    context: {
+      opportunities: fakeData.opportunities.join(", "),
+      constraints: fakeData.constraints.join(", "),
+      localEvents: "Weekend demand",
+    },
+    observations: {
+      consultantNotes: `Developer test profile. Strengths: ${fakeData.strengths.join(", ")}. Weaknesses: ${fakeData.weaknesses.join(", ")}.`,
+    },
+    subscriptionPrice: fakeData.subscriptionPrice,
+  });
+}
+
+function runDeveloperSoloBrain(targetPhase = "learning") {
+  const fakeData = soloBrainDeveloperFakeData();
+  const profile = soloBrainDeveloperProfile(fakeData);
+  return runSoloBrainOrchestrator({
+    businessIntelligenceProfile: profile,
+    targetPhase,
+    businessKpis: { results: [] },
+    campaignResults: { results: [] },
+    previousLearningMemory: null,
+  });
+}
+
+function developerJsonBlock(title, value) {
+  const empty = value === undefined || value === null || value === "";
+  return `
+    <details class="developer-brain-section" open>
+      <summary>${title}</summary>
+      <pre>${studioEscape(JSON.stringify(empty ? { status: "Not run for this workflow" } : value, null, 2))}</pre>
+    </details>
+  `;
+}
+
+function developerOpportunityBlock(brainRun) {
+  if (!brainRun) return "";
+  const opportunity = businessOpportunitySummary({ businessIntelligenceProfile: brainRun.businessIntelligenceProfile, bestNextMove: brainRun.bestNextMove }, brainRun);
+  return `
+    <section class="developer-owner-output">
+      <span>Final user-facing output</span>
+      <h3>${opportunity.title}</h3>
+      <div class="developer-owner-value">
+        <div><small>Estimated value</small><strong>${opportunity.estimatedValue}</strong></div>
+        <div><small>Based on</small><strong>${opportunity.basedOn}</strong></div>
+        <div><small>Effort</small><strong>${opportunity.effort}</strong></div>
+        <div><small>Confidence</small><strong>${opportunity.confidence}</strong></div>
+      </div>
+      <div class="developer-owner-explanation">
+        <strong>Why SOLO recommends this</strong>
+        <p>${opportunity.why}</p>
+      </div>
+      <div class="developer-owner-action">
+        <span>What to do next</span>
+        <strong>${opportunity.action}</strong>
+      </div>
+    </section>
+  `;
+}
+
+function renderDeveloperBrainPanel(brainRun = null, title = "SOLO Brain V1") {
+  if (!isDeveloperDemoMode()) return;
+  const existing = document.querySelector(".developer-brain-panel");
+  if (existing) existing.remove();
+
+  const panel = document.createElement("aside");
+  panel.className = "developer-brain-panel";
+  panel.setAttribute("aria-label", "SOLO Brain developer panel");
+  const errors = brainRun?.orchestration?.errors || [];
+  const missingData = brainRun?.orchestration?.missing_data || [];
+  panel.innerHTML = `
+    <div class="developer-brain-panel__header">
+      <div>
+        <span>Developer Demo Mode</span>
+        <h2>${title}</h2>
+      </div>
+      <button type="button" data-demo-action="close-brain-test" aria-label="Close developer panel">Close</button>
+    </div>
+    <div class="developer-brain-panel__actions">
+      <button type="button" data-demo-action="brain-run-full">Run Full Brain</button>
+      <button type="button" data-demo-action="brain-run-diagnosis">Run Diagnosis Only</button>
+      <button type="button" data-demo-action="brain-run-campaign">Run Campaign Only</button>
+      <button type="button" data-demo-action="brain-reset-demo">Reset Demo</button>
+    </div>
+    ${brainRun ? `
+      <div class="developer-brain-status">
+        <span>Target phase: <strong>${brainRun.orchestration?.target_phase || "unknown"}</strong></span>
+        <span>Completed: <strong>${(brainRun.orchestration?.completed_phases || []).join(" → ")}</strong></span>
+      </div>
+      ${developerOpportunityBlock(brainRun)}
+      ${developerJsonBlock("Business Profile", brainRun.businessIntelligenceProfile)}
+      ${developerJsonBlock("Business Diagnosis", brainRun.businessDiagnosis)}
+      ${developerJsonBlock("Ranked Evidence", brainRun.rankedEvidence)}
+      ${developerJsonBlock("Best Next Move", brainRun.bestNextMove)}
+      ${developerJsonBlock("Campaign Package", brainRun.campaignPackage)}
+      ${developerJsonBlock("Execution Plan", brainRun.executionPlan)}
+      ${developerJsonBlock("Errors or missing data", { errors, missing_data: missingData, orchestration: brainRun.orchestration })}
+    ` : `
+      <div class="developer-brain-empty">
+        <strong>Ready to test SOLO Brain V1.</strong>
+        <p>Run the full pipeline or stop at a specific phase to inspect structured outputs.</p>
+      </div>
+    `}
+  `;
+  document.body.appendChild(panel);
+}
+
+function decisionEffortFromEvidence(candidate = {}) {
+  const text = biText([candidate.title, candidate.reason, candidate.expected_impact, candidate.strongest_dimensions].join(" "));
+  if (text.includes("vip") || text.includes("weekday") || text.includes("menu")) return "Medium";
+  if (text.includes("reel") || text.includes("video")) return "Medium";
+  return "Low";
+}
+
+function decisionTimeFromEvidence(candidate = {}) {
+  const text = biText([candidate.title, candidate.reason, candidate.expected_impact].join(" "));
+  if (text.includes("reel") || text.includes("video")) return "45 min";
+  if (text.includes("menu") || text.includes("weekday")) return "2 hours";
+  if (text.includes("whatsapp")) return "30 min";
+  return "15 min";
+}
+
+function decisionCostFromEvidence(candidate = {}) {
+  const text = biText([candidate.title, candidate.reason, candidate.expected_impact].join(" "));
+  if (text.includes("menu")) return "0-300 MAD";
+  if (text.includes("reel") || text.includes("video")) return "0 MAD if filmed internally";
+  return "0 MAD";
+}
+
+function decisionSuccessMetrics(candidate = {}) {
+  const text = biText([candidate.title, candidate.reason, candidate.expected_impact].join(" "));
+  if (text.includes("review")) return ["Reviews", "Google visibility", "Customer mentions"];
+  if (text.includes("whatsapp")) return ["WhatsApp members", "Messages", "Repeat customers"];
+  if (text.includes("menu") || text.includes("revenue")) return ["Orders", "Reservations", "Revenue"];
+  if (text.includes("reel") || text.includes("video") || text.includes("content")) return ["Reach", "Engagement", "Reservations"];
+  return ["Customers", "Revenue", "Messages"];
+}
+
+function decisionExpectedImpact(candidate = {}) {
+  const text = biText([candidate.title, candidate.expected_impact].join(" "));
+  if (text.includes("review")) return "Improve trust and local Google visibility.";
+  if (text.includes("whatsapp")) return "Increase repeat customer ownership.";
+  if (text.includes("menu")) return "Increase weekend orders and average basket value.";
+  if (text.includes("reel") || text.includes("content")) return "Improve visibility and create more visit intent.";
+  return candidate.expected_impact || "Improve the diagnosed business bottleneck.";
+}
+
+function decisionWhyBullets(candidate, diagnosis, evidence) {
+  const bullets = [
+    diagnosis.highest_priority_problem?.label ? `${diagnosis.highest_priority_problem.label} is the clearest bottleneck.` : "",
+    evidence.top_matching_benchmarks?.[0]?.title ? `${evidence.top_matching_benchmarks[0].title} supports this direction.` : "",
+    candidate.strongest_dimensions?.length ? `It matches ${candidate.strongest_dimensions.slice(0, 3).join(", ")}.` : "",
+    candidate.reason || "",
+  ].filter(Boolean);
+  return [...new Set(bullets)].slice(0, 4);
+}
+
+function decisionCandidateScore(candidate, diagnosis, evidence) {
+  const score = Number(candidate.matching_score || 0);
+  const confidence = Number(diagnosis.confidence?.score || 60);
+  const dataQuality = Number(diagnosis.data_quality?.score || 50);
+  const effort = decisionEffortFromEvidence(candidate);
+  const effortPenalty = effort === "High" ? 16 : effort === "Medium" ? 7 : 0;
+  const riskPenalty = biText(candidate.reason).includes("discount") ? 10 : 0;
+  const urgencyBonus = diagnosis.urgency?.level === "Medium" ? 5 : 0;
+  const benchmarkBonus = evidence.top_matching_benchmarks?.some((item) => candidate.strongest_dimensions?.includes("benchmark match")) ? 5 : 0;
+  return Math.max(0, Math.min(100, Math.round(score * 0.52 + confidence * 0.22 + dataQuality * 0.16 + urgencyBonus + benchmarkBonus - effortPenalty - riskPenalty)));
+}
+
+function collectDecisionCandidates(evidence = {}) {
+  return [
+    ...(evidence.top_matching_campaigns || []).map((item) => ({ ...item, source_type: "campaign" })),
+    ...(evidence.top_matching_offers || []).map((item) => ({ ...item, source_type: "offer" })),
+    ...(evidence.top_matching_content || []).map((item) => ({ ...item, source_type: "content" })),
+  ];
+}
+
+function runDecisionEngine(businessDiagnosis = {}, rankedEvidence = {}) {
+  const candidates = collectDecisionCandidates(rankedEvidence)
+    .map((candidate) => {
+      const decisionScore = decisionCandidateScore(candidate, businessDiagnosis, rankedEvidence);
+      return {
+        ...candidate,
+        decision_score: decisionScore,
+        effort: decisionEffortFromEvidence(candidate),
+        time_required: decisionTimeFromEvidence(candidate),
+        estimated_cost: decisionCostFromEvidence(candidate),
+        success_metrics: decisionSuccessMetrics(candidate),
+      };
+    })
+    .filter((candidate) => candidate.decision_score > 0)
+    .sort((a, b) => b.decision_score - a.decision_score || b.matching_score - a.matching_score);
+
+  const selected = candidates[0] || {
+    title: "Complete Business Intelligence Profile",
+    matching_score: 45,
+    decision_score: 45,
+    reason: "The profile does not contain enough evidence to choose a stronger business action yet.",
+    expected_impact: "Improve decision quality.",
+    strongest_dimensions: ["data quality"],
+    effort: "Low",
+    time_required: "10 min",
+    estimated_cost: "0 MAD",
+    success_metrics: ["Profile completeness"],
+  };
+  const alternatives = candidates.slice(1, 3).map((candidate) => ({
+    campaign_name: candidate.title,
+    reason: candidate.reason,
+    confidence: `${Math.max(45, Math.min(95, candidate.decision_score))}%`,
+  }));
+  const confidenceScore = Math.max(45, Math.min(95, Math.round(
+    selected.decision_score * 0.72 +
+    Number(businessDiagnosis.confidence?.score || 60) * 0.18 +
+    Number(businessDiagnosis.data_quality?.score || 50) * 0.1
+  )));
+
+  return {
+    decision_type: "best_next_move",
+    version: "1.0",
+    source: "business_diagnosis_and_ranked_evidence",
+    generated_at: new Date().toISOString(),
+    campaign_name: selected.title,
+    why: decisionWhyBullets(selected, businessDiagnosis, rankedEvidence),
+    expected_impact: decisionExpectedImpact(selected),
+    confidence: `${confidenceScore}%`,
+    confidence_score: confidenceScore,
+    effort: selected.effort,
+    time_required: selected.time_required,
+    estimated_cost: selected.estimated_cost,
+    success_metrics: selected.success_metrics,
+    alternative_options: alternatives,
+    evidence_used: {
+      selected_evidence_id: selected.id || "",
+      selected_evidence_type: selected.source_type || "",
+      matching_score: selected.matching_score || 0,
+      decision_score: selected.decision_score || 0,
+      strongest_dimensions: selected.strongest_dimensions || [],
+    },
+  };
+}
+
+function campaignKindFromDecision(bestNextMove = {}) {
+  const text = biText([bestNextMove.campaign_name, bestNextMove.expected_impact, bestNextMove.success_metrics].join(" "));
+  if (text.includes("review") || text.includes("google")) return "review";
+  if (text.includes("reel") || text.includes("video") || text.includes("content")) return "reel";
+  if (text.includes("whatsapp") || text.includes("vip")) return "whatsapp";
+  if (text.includes("menu") || text.includes("weekend") || text.includes("weekday")) return "menu";
+  return "general";
+}
+
+function campaignBusinessName(profile = {}) {
+  return profile.identity?.businessName || "the business";
+}
+
+function campaignAudience(profile = {}) {
+  return profile.customers?.targetAudience || profile.customers?.customerSegments || "Current and potential customers";
+}
+
+function campaignPlatforms(kind, profile = {}) {
+  if (kind === "review") return ["Google Business Profile", "WhatsApp", "In-store QR"];
+  if (kind === "reel") return ["Instagram Reels", "Stories"];
+  if (kind === "whatsapp") return ["WhatsApp Business"];
+  if (kind === "menu") return ["Instagram", "WhatsApp", "Google Business Profile"];
+  return [profile.marketing?.instagram ? "Instagram" : "Primary social channel"];
+}
+
+function campaignMainMessage(kind, profile = {}) {
+  const business = campaignBusinessName(profile);
+  if (kind === "review") return `Your visit matters. A short Google review helps more people discover ${business}.`;
+  if (kind === "reel") return `${business} shows the product quality and atmosphere before customers visit.`;
+  if (kind === "whatsapp") return `Stay close to ${business} and receive useful updates without noise.`;
+  if (kind === "menu") return `A clear reason to visit this week, built around the products customers already enjoy.`;
+  return `${business} gives customers a clear reason to act now.`;
+}
+
+function campaignValueProposition(kind, profile = {}) {
+  if (kind === "review") return "Make satisfied customers visible, strengthen trust, and improve local discovery.";
+  if (kind === "reel") return "Turn product quality into attention, appetite, and visit intent.";
+  if (kind === "whatsapp") return "Own the customer relationship and increase repeat visits.";
+  if (kind === "menu") return "Make the buying decision easier and increase basket value.";
+  return "Convert the selected business opportunity into measurable customer activity.";
+}
+
+function campaignOfferFor(kind, profile = {}) {
+  const business = campaignBusinessName(profile);
+  if (kind === "review") {
+    return {
+      offer: "Google review request",
+      offer_description: "Ask satisfied guests to leave an honest Google review after a good visit.",
+      urgency: "Ask while the experience is still fresh.",
+      scarcity: "No artificial scarcity.",
+      conditions: "Only ask customers who appear satisfied. Never pressure the customer.",
+      customer_benefit: `Customers help other people choose ${business} with confidence.`,
+    };
+  }
+  if (kind === "reel") {
+    return {
+      offer: "Signature product moment",
+      offer_description: "Show the product preparation and final result in a short vertical video.",
+      urgency: "Publish before the next high-traffic evening.",
+      scarcity: "Use the real preparation moment while the product looks fresh.",
+      conditions: "Film with clean lighting and avoid interrupting customers.",
+      customer_benefit: "Customers see the quality before deciding where to go.",
+    };
+  }
+  if (kind === "whatsapp") {
+    return {
+      offer: "VIP customer updates",
+      offer_description: "Invite regular customers to receive useful updates and occasional priority information.",
+      urgency: "Start with customers already visiting this week.",
+      scarcity: "Keep the list limited to customers who want updates.",
+      conditions: "Opt-in only. Keep messages useful and infrequent.",
+      customer_benefit: "Customers receive practical information without needing to search.",
+    };
+  }
+  return {
+    offer: "Clear visit reason",
+    offer_description: "Package a simple, high-value reason to visit during the selected period.",
+    urgency: "Communicate before the demand window.",
+    scarcity: "Available during the selected period only.",
+    conditions: "Keep the offer simple and protect the premium perception.",
+    customer_benefit: "Customers understand what to order and why now.",
+  };
+}
+
+function campaignReelFor(kind, profile = {}) {
+  const business = campaignBusinessName(profile);
+  if (kind === "review") {
+    return {
+      reel_concept: "A calm customer trust reel showing the experience and inviting honest reviews.",
+      hook: "People trust restaurants that customers already trust.",
+      full_script: [
+        "Show the entrance or table setup.",
+        "Show the product or service moment.",
+        "Show a close-up of the Google review QR card.",
+        "Voice/text: If you enjoyed your visit, your Google review helps others discover us.",
+        "End with the business name and a simple thank you.",
+      ],
+      scenes: [
+        { scene: 1, purpose: "Context", instruction: "Film the restaurant entrance or a clean table for 2 seconds." },
+        { scene: 2, purpose: "Experience", instruction: "Film the strongest product or atmosphere moment for 3 seconds." },
+        { scene: 3, purpose: "Action", instruction: "Show the QR review card or Google profile for 2 seconds." },
+        { scene: 4, purpose: "Trust", instruction: "Show staff saying thank you or smiling naturally." },
+      ],
+      shot_list: ["Entrance", "Product close-up", "QR review card", "Staff thank-you moment"],
+      b_roll_suggestions: ["Table details", "Food preparation", "Receipt tray with review card"],
+      camera_angles: ["Eye-level entrance", "45-degree product close-up", "Steady overhead QR shot"],
+      subtitle_suggestions: ["Votre avis aide d'autres clients à nous trouver.", "Merci pour votre confiance."],
+      music_style: "Calm premium instrumental.",
+      final_cta: "If you enjoyed your visit, leave us a Google review.",
+    };
+  }
+  if (kind === "reel") {
+    return {
+      reel_concept: "Signature product reel focused on appetite, quality and atmosphere.",
+      hook: `This is what makes ${business} worth visiting.`,
+      full_script: [
+        "Open with the strongest product movement.",
+        "Show preparation in progress.",
+        "Show the final product close-up.",
+        "Show one atmosphere detail.",
+        "End with a clear visit or reservation CTA.",
+      ],
+      scenes: [
+        { scene: 1, purpose: "Hook", instruction: "Film the strongest product movement for 2 seconds." },
+        { scene: 2, purpose: "Craft", instruction: "Show preparation, oven, plating or pouring." },
+        { scene: 3, purpose: "Desire", instruction: "Close-up of the finished product." },
+        { scene: 4, purpose: "Experience", instruction: "Film table, mood or customer-safe atmosphere." },
+        { scene: 5, purpose: "CTA", instruction: "Show entrance or table and invite people to visit." },
+      ],
+      shot_list: ["Product movement", "Preparation", "Finished product", "Atmosphere", "Entrance/table CTA"],
+      b_roll_suggestions: ["Hands preparing", "Steam or texture", "Interior detail", "Serving moment"],
+      camera_angles: ["Close-up", "Slow push-in", "Overhead", "Eye-level atmosphere"],
+      subtitle_suggestions: ["Préparé sous vos yeux.", "Réservez votre table aujourd'hui."],
+      music_style: "Warm modern instrumental with a premium rhythm.",
+      final_cta: "Reserve your table today.",
+    };
+  }
+  return {
+    reel_concept: "Simple campaign explanation reel.",
+    hook: "Here is what is prepared this week.",
+    full_script: ["Show the offer or action clearly.", "Explain the benefit.", "End with one clear CTA."],
+    scenes: [
+      { scene: 1, purpose: "Hook", instruction: "Show the main product or campaign visual." },
+      { scene: 2, purpose: "Benefit", instruction: "Show what the customer receives." },
+      { scene: 3, purpose: "CTA", instruction: "Tell customers what to do next." },
+    ],
+    shot_list: ["Main visual", "Benefit close-up", "CTA frame"],
+    b_roll_suggestions: ["Product", "Team", "Place"],
+    camera_angles: ["Close-up", "Eye-level"],
+    subtitle_suggestions: ["Simple benefit", "Clear CTA"],
+    music_style: "Calm upbeat instrumental.",
+    final_cta: "Contact us today.",
+  };
+}
+
+function campaignCaptionFor(kind, profile = {}) {
+  const business = campaignBusinessName(profile);
+  if (kind === "review") {
+    return `Merci à tous nos clients qui nous font confiance.\n\nSi vous avez apprécié votre visite chez ${business}, un petit avis Google nous aide énormément.\n\nVotre avis aide d'autres personnes à nous découvrir avec confiance.\n\nMerci pour votre soutien.`;
+  }
+  if (kind === "reel") {
+    return `La qualité se voit dans les détails.\n\nChez ${business}, chaque moment compte: la préparation, l'ambiance et le plaisir de partager.\n\nEnvie de passer nous voir cette semaine?\n\nRéservez votre table aujourd'hui.`;
+  }
+  if (kind === "whatsapp") {
+    return `Nous préparons une liste client simple pour partager les nouveautés utiles, les moments importants et les informations pratiques.\n\nSi vous souhaitez recevoir nos prochaines nouvelles, envoyez-nous un message sur WhatsApp.\n\nSimple, utile, sans spam.`;
+  }
+  return `Cette semaine, nous avons préparé une raison simple de venir nous voir.\n\nUne offre claire, pensée pour nos clients habituels et les nouveaux visiteurs.\n\nContactez-nous pour réserver ou en savoir plus.`;
+}
+
+function campaignStoriesFor(kind, profile = {}) {
+  if (kind === "review") {
+    return [
+      { visual_idea: "Clean table or product close-up", text: "Vous avez aimé votre visite?", sticker_suggestion: "Poll: Oui / Beaucoup", cta: "Passez à la story suivante" },
+      { visual_idea: "Google review QR card", text: "Votre avis Google nous aide énormément.", sticker_suggestion: "Link sticker", cta: "Laisser un avis" },
+      { visual_idea: "Team thank-you moment", text: "Merci pour votre confiance.", sticker_suggestion: "Heart sticker", cta: "À très bientôt" },
+    ];
+  }
+  if (kind === "reel") {
+    return [
+      { visual_idea: "Behind-the-scenes preparation", text: "Préparation en cours.", sticker_suggestion: "Slider", cta: "Regardez le reel" },
+      { visual_idea: "Finished product close-up", text: "Le résultat final.", sticker_suggestion: "Poll: Vous goûtez?", cta: "Réserver" },
+      { visual_idea: "Restaurant atmosphere", text: "Passez nous voir cette semaine.", sticker_suggestion: "Location sticker", cta: "Envoyer un message" },
+    ];
+  }
+  return [
+    { visual_idea: "Campaign main visual", text: "Préparé pour cette semaine.", sticker_suggestion: "Poll", cta: "Voir plus" },
+    { visual_idea: "Benefit visual", text: "Simple, clair, utile.", sticker_suggestion: "Question sticker", cta: "Envoyer un message" },
+    { visual_idea: "CTA visual", text: "Contactez-nous aujourd'hui.", sticker_suggestion: "Link sticker", cta: "WhatsApp" },
+  ];
+}
+
+function campaignCarouselFor(kind) {
+  if (kind === "review") {
+    return {
+      is_appropriate: true,
+      slides: [
+        { slide: 1, headline: "Votre avis compte", content: "Un avis Google aide d'autres clients à choisir avec confiance.", cta: "" },
+        { slide: 2, headline: "Pourquoi c'est important", content: "Les nouveaux clients regardent souvent les avis avant de venir.", cta: "" },
+        { slide: 3, headline: "Merci pour votre soutien", content: "Si vous avez aimé l'expérience, laissez-nous un petit avis.", cta: "Laisser un avis Google" },
+      ],
+    };
+  }
+  if (kind === "reel") {
+    return {
+      is_appropriate: false,
+      reason: "The selected campaign works better as a short vertical video than a carousel.",
+      slides: [],
+    };
+  }
+  return {
+    is_appropriate: true,
+    slides: [
+      { slide: 1, headline: "Cette semaine", content: "Une action simple est préparée.", cta: "" },
+      { slide: 2, headline: "Pourquoi", content: "Elle répond au besoin principal identifié.", cta: "" },
+      { slide: 3, headline: "Prochaine étape", content: "Contactez-nous ou réservez.", cta: "Envoyer un message" },
+    ],
+  };
+}
+
+function campaignAdvertisementFor(kind, profile = {}) {
+  if (!["reel", "menu"].includes(kind)) {
+    return {
+      is_relevant: false,
+      reason: "Organic execution is enough for the first version of this campaign.",
+    };
+  }
+  return {
+    is_relevant: true,
+    headline: kind === "reel" ? "Découvrez notre signature" : "Ce week-end, venez en famille",
+    primary_text: campaignCaptionFor(kind, profile),
+    description: "Short local awareness ad using the strongest creative asset.",
+    creative_brief: "Use the clearest product visual, minimal text, and one direct CTA.",
+    recommended_audience: campaignAudience(profile),
+    suggested_budget: "100-300 MAD test budget",
+    campaign_objective: "Messages or local awareness",
+  };
+}
+
+function campaignPostingPlanFor(kind) {
+  if (kind === "review") {
+    return {
+      posting_schedule: ["Story reminder today", "Google post this week", "WhatsApp follow-up after visits"],
+      recommended_days: ["Tuesday", "Thursday", "Sunday"],
+      best_posting_times: ["12:00", "18:30", "After payment for in-store request"],
+      recommended_order: ["Prepare QR card", "Train staff", "Post story", "Ask satisfied customers", "Track new reviews"],
+    };
+  }
+  if (kind === "reel") {
+    return {
+      posting_schedule: ["Film today", "Publish before evening traffic", "Repost to stories after publishing"],
+      recommended_days: ["Thursday", "Friday", "Saturday"],
+      best_posting_times: ["12:30", "19:00", "21:00"],
+      recommended_order: ["Film clips", "Edit short reel", "Add caption", "Publish", "Reply to messages"],
+    };
+  }
+  return {
+    posting_schedule: ["Prepare asset", "Publish before demand window", "Follow up with messages"],
+    recommended_days: ["Tuesday", "Friday", "Sunday"],
+    best_posting_times: ["12:00", "18:30"],
+    recommended_order: ["Prepare", "Publish", "Reply", "Track"],
+  };
+}
+
+function campaignChecklistFor(kind) {
+  const base = [
+    { task: "Confirm campaign package", category: "Approval", done: false },
+    { task: "Prepare main visual asset", category: "Photography", done: false },
+    { task: "Approve caption and CTA", category: "Approval", done: false },
+    { task: "Publish on selected platform", category: "Publishing", done: false },
+    { task: "Reply to customer messages", category: "Community Management", done: false },
+    { task: "Record results after 48 hours", category: "Follow-up", done: false },
+  ];
+  if (kind === "reel") {
+    return [
+      { task: "Record hook clip", category: "Recording", done: false },
+      { task: "Record product clip", category: "Recording", done: false },
+      { task: "Record atmosphere clip", category: "Recording", done: false },
+      { task: "Edit into 15-25 second reel", category: "Editing", done: false },
+      ...base.slice(2),
+    ];
+  }
+  if (kind === "review") {
+    return [
+      { task: "Print or display QR review card", category: "Preparation", done: false },
+      { task: "Train staff on the review script", category: "Approval", done: false },
+      { task: "Ask satisfied customers after payment", category: "Community Management", done: false },
+      { task: "Send polite WhatsApp follow-up when appropriate", category: "Follow-up", done: false },
+      { task: "Track new Google reviews weekly", category: "Measurement", done: false },
+    ];
+  }
+  return base;
+}
+
+function campaignKpiPlanFor(kind, bestNextMove = {}) {
+  if (kind === "review") {
+    return {
+      primary_kpi: "New Google reviews",
+      secondary_kpi: "Customers mentioning Google",
+      reach: "Story views or Google post views",
+      engagement: "Story taps and replies",
+      orders: "Not primary",
+      reservations: "Customers who mention seeing reviews",
+      revenue: "Revenue influenced by customers mentioning Google",
+      reviews: "New reviews per week",
+      whatsapp_messages: "Follow-up replies",
+      success_criteria: "Consistent weekly review growth and stronger trust signal.",
+    };
+  }
+  if (kind === "reel") {
+    return {
+      primary_kpi: "Reach",
+      secondary_kpi: "Reservations or WhatsApp messages",
+      reach: "Reel views",
+      engagement: "Saves, shares, comments",
+      orders: "Orders linked to the reel",
+      reservations: "Reservations after publishing",
+      revenue: "Estimated revenue from tracked reservations",
+      reviews: "Not primary",
+      whatsapp_messages: "Messages received after reel",
+      success_criteria: "The reel creates attention and measurable customer conversations.",
+    };
+  }
+  return {
+    primary_kpi: bestNextMove.success_metrics?.[0] || "Customers",
+    secondary_kpi: bestNextMove.success_metrics?.[1] || "Revenue",
+    reach: "People exposed to campaign",
+    engagement: "Replies, clicks or saves",
+    orders: "Orders generated",
+    reservations: "Reservations generated",
+    revenue: "Revenue influenced",
+    reviews: "Reviews generated if relevant",
+    whatsapp_messages: "Customer messages",
+    success_criteria: bestNextMove.expected_impact || "Measurable improvement in the selected business outcome.",
+  };
+}
+
+function campaignRisksFor(kind) {
+  const common = [
+    { risk: "Execution delay", mitigation: "Keep the first version simple and publish before improving details." },
+    { risk: "Message too complex", mitigation: "Use one clear CTA and remove extra claims." },
+  ];
+  if (kind === "review") {
+    return [
+      { risk: "Customers feel pressured", mitigation: "Ask only satisfied customers and keep the request polite." },
+      { risk: "Staff forgets to ask", mitigation: "Place the script near checkout and review it before service." },
+      ...common,
+    ];
+  }
+  if (kind === "reel") {
+    return [
+      { risk: "Video quality feels weak", mitigation: "Use natural light, steady camera and close-up shots." },
+      { risk: "Content feels generic", mitigation: "Show a real signature product moment from the business." },
+      ...common,
+    ];
+  }
+  return common;
+}
+
+function runCampaignGenerationEngine(profile = defaultBusinessIntelligenceProfile(), businessDiagnosis = {}, bestNextMove = {}, supportingEvidence = {}) {
+  const kind = campaignKindFromDecision(bestNextMove);
+  const business = campaignBusinessName(profile);
+  const platforms = campaignPlatforms(kind, profile);
+  const offer = campaignOfferFor(kind, profile);
+  const reel = campaignReelFor(kind, profile);
+  const caption = campaignCaptionFor(kind, profile);
+  const stories = campaignStoriesFor(kind, profile);
+  const carousel = campaignCarouselFor(kind);
+  const advertisement = campaignAdvertisementFor(kind, profile);
+  const postingPlan = campaignPostingPlanFor(kind);
+  const checklist = campaignChecklistFor(kind);
+  const kpiPlan = campaignKpiPlanFor(kind, bestNextMove);
+  const risks = campaignRisksFor(kind);
+
+  return {
+    package_type: "campaign_package",
+    version: "1.0",
+    source: "best_next_move",
+    generated_at: new Date().toISOString(),
+    business_name: business,
+    source_decision: {
+      campaign_name: bestNextMove.campaign_name || "",
+      confidence: bestNextMove.confidence || "",
+      evidence_used: bestNextMove.evidence_used || {},
+    },
+    modules: {
+      campaign_strategy: {
+        module_type: "campaign_strategy",
+        can_regenerate_independently: true,
+        campaign_name: bestNextMove.campaign_name || "Campaign",
+        objective: bestNextMove.expected_impact || "Execute the selected business decision.",
+        target_audience: campaignAudience(profile),
+        main_message: campaignMainMessage(kind, profile),
+        value_proposition: campaignValueProposition(kind, profile),
+        expected_duration: kind === "review" ? "4 weeks" : "1-2 weeks",
+        recommended_platforms: platforms,
+        estimated_budget: bestNextMove.estimated_cost || decisionCostFromEvidence(bestNextMove),
+        success_metrics: bestNextMove.success_metrics || [],
+      },
+      creative_direction: {
+        module_type: "creative_direction",
+        can_regenerate_independently: true,
+        campaign_theme: kind === "review" ? "Trust made visible" : kind === "reel" ? "Signature experience" : "Clear reason to act",
+        visual_style: kind === "review" ? "Clean, calm, premium, focused on proof" : "Warm, appetizing, natural, vertical-first",
+        tone_of_voice: "Clear, respectful, confident and practical",
+        brand_feeling: profile.identity?.businessCategory || businessDiagnosis.biggest_strength?.label || "Professional and trustworthy",
+        psychological_triggers: supportingEvidence.top_matching_psychology?.slice(0, 3).map((item) => item.title) || [],
+        color_direction: "Warm neutral background, deep green accents, subtle gold for value.",
+        creative_brief: `Create assets that make ${business}'s selected action clear, trustworthy and easy to execute without extra explanation.`,
+      },
+      offer: {
+        module_type: "offer",
+        can_regenerate_independently: true,
+        ...offer,
+      },
+      reel_generator: {
+        module_type: "reel_generator",
+        can_regenerate_independently: true,
+        ...reel,
+      },
+      caption_generator: {
+        module_type: "caption_generator",
+        can_regenerate_independently: true,
+        caption,
+      },
+      story_generator: {
+        module_type: "story_generator",
+        can_regenerate_independently: true,
+        stories,
+      },
+      carousel_generator: {
+        module_type: "carousel_generator",
+        can_regenerate_independently: true,
+        ...carousel,
+      },
+      advertisement_generator: {
+        module_type: "advertisement_generator",
+        can_regenerate_independently: true,
+        ...advertisement,
+      },
+      posting_plan: {
+        module_type: "posting_plan",
+        can_regenerate_independently: true,
+        ...postingPlan,
+      },
+      execution_checklist: {
+        module_type: "execution_checklist",
+        can_regenerate_independently: true,
+        tasks: checklist,
+      },
+      kpi_plan: {
+        module_type: "kpi_plan",
+        can_regenerate_independently: true,
+        ...kpiPlan,
+      },
+      risks: {
+        module_type: "risks",
+        can_regenerate_independently: true,
+        items: risks,
+      },
+    },
+  };
+}
+
+function executionKindFromPackage(campaignPackage = {}, bestNextMove = {}) {
+  return campaignKindFromDecision(bestNextMove || campaignPackage.source_decision || {});
+}
+
+function executionRoadmapFor(kind) {
+  const contentObjective = kind === "review" ? "Make the review system usable in-store." : "Create the content assets without overthinking.";
+  return [
+    { phase: "Planning", objective: "Confirm the campaign goal, owner responsibility and success metric.", status: "complete" },
+    { phase: "Preparation", objective: kind === "review" ? "Prepare the QR card and staff script." : "Prepare the product, place and simple shot list.", status: "current" },
+    { phase: "Content Creation", objective: contentObjective, status: "pending" },
+    { phase: "Review", objective: "Check the asset before it goes public.", status: "pending" },
+    { phase: "Publishing", objective: "Publish or activate the campaign on the selected platform.", status: "pending" },
+    { phase: "Monitoring", objective: "Reply to customer reactions and track early signals.", status: "pending" },
+    { phase: "Completion", objective: "Record results and close the campaign properly.", status: "pending" },
+  ];
+}
+
+function executionTasksFromPackage(campaignPackage = {}, kind = "general") {
+  const packageTasks = campaignPackage.modules?.execution_checklist?.tasks || [];
+  const tasks = packageTasks.map((task, index) => ({
+    id: `task-${index + 1}`,
+    title: task.task,
+    phase: task.category || "Execution",
+    estimated_time: index === 0 ? (kind === "reel" ? "20 min" : "10 min") : "5-15 min",
+    status: task.done ? "complete" : index === 0 ? "current" : "pending",
+  }));
+  if (tasks.length) return tasks;
+  return [
+    { id: "task-1", title: "Confirm campaign package", phase: "Planning", estimated_time: "5 min", status: "current" },
+    { id: "task-2", title: "Prepare asset", phase: "Preparation", estimated_time: "15 min", status: "pending" },
+    { id: "task-3", title: "Publish", phase: "Publishing", estimated_time: "5 min", status: "pending" },
+    { id: "task-4", title: "Track results", phase: "Monitoring", estimated_time: "5 min", status: "pending" },
+  ];
+}
+
+function executionTimelineFor(kind, profile = {}, campaignPackage = {}) {
+  const days = kind === "review"
+    ? [
+        ["Today", "Prepare QR review card and staff script"],
+        ["Tomorrow", "Ask satisfied customers after payment"],
+        ["This weekend", "Track new reviews and customer mentions"],
+      ]
+    : kind === "reel"
+      ? [
+          ["Thursday", "Record short product clips"],
+          ["Friday", "Edit and approve the reel"],
+          ["Saturday", "Publish before evening traffic"],
+          ["Sunday", "Reply and track reservations/messages"],
+        ]
+      : [
+          ["Today", "Prepare the campaign asset"],
+          ["Tomorrow", "Publish and reply to customers"],
+          ["This weekend", "Track results"],
+        ];
+  return days.map(([day, action], index) => ({
+    day,
+    action,
+    estimated_time: index === 0 ? campaignPackage.modules?.campaign_strategy?.success_metrics?.includes("Reach") ? "45 min" : "15 min" : "10 min",
+    status: index === 0 ? "current" : "scheduled",
+  }));
+}
+
+function executionProgressFor(roadmap = [], tasks = []) {
+  const completedTasks = tasks.filter((task) => task.status === "complete").length;
+  const totalTasks = Math.max(tasks.length, 1);
+  const taskProgress = Math.round((completedTasks / totalTasks) * 100);
+  const phaseProgress = Object.fromEntries(roadmap.map((phase) => {
+    const phaseTasks = tasks.filter((task) => task.phase === phase.phase || task.phase === phase.objective);
+    const complete = phase.status === "complete"
+      ? 100
+      : phase.status === "current"
+        ? Math.max(25, phaseTasks.length ? Math.round((phaseTasks.filter((task) => task.status === "complete").length / phaseTasks.length) * 100) : 25)
+        : 0;
+    return [phase.phase, complete];
+  }));
+  return {
+    overall_percent: Math.max(taskProgress, roadmap.some((phase) => phase.status === "complete") ? 14 : 0),
+    phase_progress: phaseProgress,
+    completed_tasks: completedTasks,
+    total_tasks: totalTasks,
+  };
+}
+
+function executionNextAction(tasks = [], kind = "general", campaignPackage = {}) {
+  const current = tasks.find((task) => task.status === "current") || tasks.find((task) => task.status !== "complete") || tasks[0];
+  return {
+    title: current?.title || "Confirm campaign package",
+    estimated_time: current?.estimated_time || "10 min",
+    difficulty: kind === "reel" && /record|edit/i.test(current?.title || "") ? "Medium" : "Easy",
+    expected_result: kind === "review"
+      ? "The team can start collecting reviews without improvising."
+      : kind === "reel"
+        ? "The campaign gets a usable content asset."
+        : campaignPackage.modules?.campaign_strategy?.objective || "The campaign moves forward.",
+    one_instruction: kind === "review"
+      ? "Use the prepared script with one satisfied customer after payment."
+      : "Complete only this task before thinking about the next one.",
+  };
+}
+
+function executionAssetsFromPackage(campaignPackage = {}) {
+  const modules = campaignPackage.modules || {};
+  return {
+    videos: modules.reel_generator?.shot_list || [],
+    photos: modules.reel_generator?.b_roll_suggestions || [],
+    captions: modules.caption_generator?.caption ? [modules.caption_generator.caption] : [],
+    stories: modules.story_generator?.stories || [],
+    reels: modules.reel_generator ? [modules.reel_generator.reel_concept] : [],
+    carousel: modules.carousel_generator?.slides || [],
+    advertisements: modules.advertisement_generator?.is_relevant ? [modules.advertisement_generator] : [],
+    brand_assets: [modules.creative_direction?.visual_style, modules.creative_direction?.color_direction].filter(Boolean),
+  };
+}
+
+function executionRemindersFor(kind) {
+  if (kind === "review") {
+    return [
+      { timing: "Before service", reminder: "Place the QR card where staff can see it.", purpose: "Avoid forgetting the request." },
+      { timing: "After payment", reminder: "Ask one satisfied customer for a review.", purpose: "Capture the moment while fresh." },
+      { timing: "End of week", reminder: "Check new Google reviews.", purpose: "Measure progress." },
+    ];
+  }
+  if (kind === "reel") {
+    return [
+      { timing: "Before filming", reminder: "Clean the filming area and prepare the product.", purpose: "Improve quality quickly." },
+      { timing: "Publishing day", reminder: "Publish during the selected time window.", purpose: "Increase visibility." },
+      { timing: "After publishing", reminder: "Reply to comments and messages.", purpose: "Convert attention into action." },
+    ];
+  }
+  return [
+    { timing: "Today", reminder: "Complete the current task.", purpose: "Keep the campaign moving." },
+    { timing: "After publishing", reminder: "Reply to customers.", purpose: "Capture demand." },
+    { timing: "48 hours later", reminder: "Add results.", purpose: "Prepare learning." },
+  ];
+}
+
+function executionStatusFor(roadmap = []) {
+  const current = roadmap.find((phase) => phase.status === "current") || roadmap[0];
+  const statusMap = {
+    Planning: "Planning",
+    Preparation: "Recording",
+    "Content Creation": "Recording",
+    Review: "Editing",
+    Publishing: "Scheduled",
+    Monitoring: "Monitoring",
+    Completion: "Completed",
+  };
+  return {
+    current_stage: statusMap[current?.phase] || "Planning",
+    stage_path: ["Planning", "Recording", "Editing", "Scheduled", "Published", "Monitoring", "Completed"],
+    status_label: `${current?.phase || "Planning"} in progress`,
+  };
+}
+
+function executionBlockersFor(kind, profile = {}, campaignPackage = {}) {
+  const blockers = [];
+  if (kind === "reel" && !biIncludes(profile, ["resources.canCreateVideos"], ["yes", "sometimes"])) {
+    blockers.push({ blocker: "Video creation capacity unclear", solution: "Use a simple phone clip and keep the first version under 20 seconds." });
+  }
+  if (!biIncludes(profile, ["resources.staffAvailable"], ["yes", "sometimes"])) {
+    blockers.push({ blocker: "Staff availability unclear", solution: "Assign the owner or one person to the single next action only." });
+  }
+  if (kind === "review") {
+    blockers.push({ blocker: "Staff may forget to ask", solution: "Place the review script next to checkout or the payment area." });
+  }
+  if (!campaignPackage.modules?.caption_generator?.caption) {
+    blockers.push({ blocker: "Caption missing", solution: "Use the generated caption module before publishing." });
+  }
+  return blockers.slice(0, 3);
+}
+
+function executionMotivationFor(progress = {}, nextAction = {}, bestNextMove = {}) {
+  const remaining = Math.max(Number(progress.total_tasks || 0) - Number(progress.completed_tasks || 0), 0);
+  return {
+    message: remaining <= 1
+      ? "Only one task remains before this campaign can move forward."
+      : `Campaign is ${progress.overall_percent}% complete. Focus only on the next action.`,
+    business_reason: bestNextMove.expected_impact || nextAction.expected_result || "This action moves the selected business goal forward.",
+  };
+}
+
+function executionCompletionChecklistFor(campaignPackage = {}) {
+  const metrics = campaignPackage.modules?.kpi_plan || {};
+  return [
+    { item: "Content created", verification: "Main asset exists and is usable.", complete: false },
+    { item: "Content reviewed", verification: "Caption, CTA and visual are approved.", complete: false },
+    { item: "Published", verification: "Campaign is live on the selected platform.", complete: false },
+    { item: "Community management completed", verification: "Comments and messages have received replies.", complete: false },
+    { item: "KPIs initialized", verification: `Primary KPI is set: ${metrics.primary_kpi || "selected metric"}.`, complete: false },
+    { item: "Campaign archived", verification: "Final results are saved for learning.", complete: false },
+  ];
+}
+
+function runExecutionManager(profile = defaultBusinessIntelligenceProfile(), businessDiagnosis = {}, bestNextMove = {}, campaignPackage = {}) {
+  const kind = executionKindFromPackage(campaignPackage, bestNextMove);
+  const roadmap = executionRoadmapFor(kind);
+  const tasks = executionTasksFromPackage(campaignPackage, kind);
+  const timeline = executionTimelineFor(kind, profile, campaignPackage);
+  const progress = executionProgressFor(roadmap, tasks);
+  const todaysNextAction = executionNextAction(tasks, kind, campaignPackage);
+  const campaignStatus = executionStatusFor(roadmap);
+
+  return {
+    execution_type: "campaign_execution_plan",
+    version: "1.0",
+    source: "campaign_package",
+    generated_at: new Date().toISOString(),
+    campaign_name: bestNextMove.campaign_name || campaignPackage.modules?.campaign_strategy?.campaign_name || "",
+    execution_roadmap: roadmap,
+    task_list: tasks,
+    timeline,
+    todays_next_action: todaysNextAction,
+    progress,
+    campaign_status: campaignStatus,
+    asset_manager: executionAssetsFromPackage(campaignPackage),
+    reminders: executionRemindersFor(kind),
+    execution_risks: executionBlockersFor(kind, profile, campaignPackage),
+    motivation: executionMotivationFor(progress, todaysNextAction, bestNextMove),
+    completion_checklist: executionCompletionChecklistFor(campaignPackage),
+  };
+}
+
+function performanceResultsFromInput(input = {}) {
+  const results = Array.isArray(input.results) ? input.results : [];
+  const learning = Array.isArray(input.learning_events) ? input.learning_events : [];
+  const totals = results.reduce((sum, result) => ({
+    reach: sum.reach + Number(result.reach || 0),
+    views: sum.views + Number(result.views || 0),
+    impressions: sum.impressions + Number(result.impressions || result.views || 0),
+    engagement: sum.engagement + Number(result.engagement || 0),
+    comments: sum.comments + Number(result.comments || 0),
+    shares: sum.shares + Number(result.shares || 0),
+    saves: sum.saves + Number(result.saves || 0),
+    clicks: sum.clicks + Number(result.clicks || 0),
+    whatsapp_messages: sum.whatsapp_messages + Number(result.messages || result.whatsapp_messages || 0),
+    reservations: sum.reservations + Number(result.reservations || 0),
+    orders: sum.orders + Number(result.orders || 0),
+    revenue: sum.revenue + Number(result.revenue || 0),
+    reviews: sum.reviews + Number(result.reviews || 0),
+    follower_growth: sum.follower_growth + Number(result.follower_growth || 0),
+    repeat_customers: sum.repeat_customers + Number(result.repeat_customers || 0),
+    customers: sum.customers + Number(result.customers || 0),
+  }), {
+    reach: 0,
+    views: 0,
+    impressions: 0,
+    engagement: 0,
+    comments: 0,
+    shares: 0,
+    saves: 0,
+    clicks: 0,
+    whatsapp_messages: 0,
+    reservations: 0,
+    orders: 0,
+    revenue: 0,
+    reviews: 0,
+    follower_growth: 0,
+    repeat_customers: 0,
+    customers: 0,
+  });
+  learning.forEach((event) => {
+    totals.reach += Number(event.reach || 0);
+    totals.clicks += Number(event.clicks || 0);
+  });
+  return {
+    totals,
+    result_count: results.length,
+    has_results: results.length > 0,
+    last_result_at: results[0]?.savedAt || "",
+    notes: results.map((result) => result.notes).filter(Boolean),
+  };
+}
+
+function performanceObjectiveKind(bestNextMove = {}, campaignPackage = {}) {
+  const text = biText([
+    bestNextMove.campaign_name,
+    bestNextMove.expected_impact,
+    bestNextMove.success_metrics,
+    campaignPackage.modules?.kpi_plan?.primary_kpi,
+  ].join(" "));
+  if (text.includes("review")) return "reviews";
+  if (text.includes("reservation")) return "reservations";
+  if (text.includes("revenue") || text.includes("orders") || text.includes("menu")) return "revenue";
+  if (text.includes("repeat")) return "repeat_customers";
+  if (text.includes("reach") || text.includes("visibility") || text.includes("reel")) return "visibility";
+  if (text.includes("whatsapp") || text.includes("messages")) return "whatsapp_messages";
+  return "customers";
+}
+
+function performanceKpiStatus(metric, value, objectiveKind, hasResults) {
+  if (!hasResults) return { status: "Missing", comparison: "No real result recorded yet." };
+  const isPrimary = metric === objectiveKind || (objectiveKind === "visibility" && ["reach", "views", "impressions"].includes(metric));
+  if (value > 0 && isPrimary) return { status: "Positive", comparison: "Moved the primary objective." };
+  if (value > 0) return { status: "Positive signal", comparison: "Useful supporting result." };
+  if (isPrimary) return { status: "No movement", comparison: "Primary objective has no recorded result yet." };
+  return { status: "Not tracked", comparison: "No data recorded for this metric." };
+}
+
+function performanceKpiAnalysis(totals, objectiveKind, hasResults) {
+  return Object.entries({
+    reach: totals.reach,
+    views: totals.views,
+    impressions: totals.impressions,
+    engagement: totals.engagement,
+    comments: totals.comments,
+    shares: totals.shares,
+    saves: totals.saves,
+    clicks: totals.clicks,
+    whatsapp_messages: totals.whatsapp_messages,
+    reservations: totals.reservations,
+    orders: totals.orders,
+    revenue: totals.revenue,
+    reviews: totals.reviews,
+    follower_growth: totals.follower_growth,
+    repeat_customers: totals.repeat_customers,
+  }).map(([metric, value]) => ({
+    metric,
+    value,
+    ...performanceKpiStatus(metric, value, objectiveKind, hasResults),
+  }));
+}
+
+function performanceBusinessImpact(totals, objectiveKind, hasResults) {
+  if (!hasResults) {
+    return {
+      outcome: "Not measured yet",
+      facts: ["No campaign result has been saved."],
+      business_metrics_priority: ["Revenue", "Reservations", "Orders", "Reviews", "Repeat customers"],
+    };
+  }
+  const facts = [
+    totals.revenue > 0 ? `${totals.revenue.toLocaleString()} MAD revenue recorded` : "",
+    totals.customers > 0 ? `${totals.customers} customers recorded` : "",
+    totals.reservations > 0 ? `${totals.reservations} reservations recorded` : "",
+    totals.reviews > 0 ? `${totals.reviews} reviews recorded` : "",
+    totals.whatsapp_messages > 0 ? `${totals.whatsapp_messages} WhatsApp messages recorded` : "",
+  ].filter(Boolean);
+  const primaryValue = objectiveKind === "visibility"
+    ? totals.views + totals.reach + totals.impressions
+    : Number(totals[objectiveKind] || 0);
+  return {
+    outcome: primaryValue > 0 ? "Business movement recorded" : "No primary business movement recorded",
+    facts: facts.length ? facts : ["Only non-business or incomplete signals were recorded."],
+    business_metrics_priority: ["Revenue", "Reservations", "Orders", "Reviews", "Repeat customers"],
+  };
+}
+
+function performanceGoalAchievement(totals, objectiveKind, hasResults) {
+  if (!hasResults) {
+    return {
+      status: "Not Achieved",
+      reason: "No real result has been recorded yet, so the objective cannot be confirmed.",
+    };
+  }
+  const primaryValue = objectiveKind === "visibility"
+    ? totals.views + totals.reach + totals.impressions
+    : Number(totals[objectiveKind] || 0);
+  if (primaryValue > 0) {
+    const strongBusinessSignal = totals.revenue > 0 || totals.customers > 0 || totals.reservations > 0 || totals.orders > 0 || totals.reviews > 0;
+    return {
+      status: strongBusinessSignal ? "Achieved" : "Partially Achieved",
+      reason: strongBusinessSignal
+        ? "The campaign produced recorded movement on the primary or business KPI."
+        : "The campaign produced visibility or interaction, but business impact remains limited.",
+    };
+  }
+  return {
+    status: "Not Achieved",
+    reason: "The primary KPI did not move based on recorded results.",
+  };
+}
+
+function performanceSuccessFactors(totals, objectiveKind, hasResults) {
+  if (!hasResults) return [];
+  return [
+    totals.reviews > 0 ? { factor: "Review collection", evidence: `${totals.reviews} new reviews were recorded.` } : null,
+    totals.revenue > 0 ? { factor: "Revenue impact", evidence: `${totals.revenue.toLocaleString()} MAD was recorded.` } : null,
+    totals.whatsapp_messages > 0 ? { factor: "Customer conversation", evidence: `${totals.whatsapp_messages} WhatsApp messages were recorded.` } : null,
+    totals.reservations > 0 ? { factor: "Reservation intent", evidence: `${totals.reservations} reservations were recorded.` } : null,
+    objectiveKind === "visibility" && (totals.views + totals.reach + totals.impressions) > 0
+      ? { factor: "Visibility", evidence: `${(totals.views + totals.reach + totals.impressions).toLocaleString()} visibility signals were recorded.` }
+      : null,
+  ].filter(Boolean);
+}
+
+function performanceFailureFactors(totals, objectiveKind, hasResults, executionPlan = {}) {
+  const factors = [];
+  if (!hasResults) factors.push({ factor: "Missing measurement", evidence: "No result has been saved yet." });
+  const primaryValue = objectiveKind === "visibility"
+    ? totals.views + totals.reach + totals.impressions
+    : Number(totals[objectiveKind] || 0);
+  if (hasResults && primaryValue === 0) factors.push({ factor: "Primary KPI did not move", evidence: `No recorded value for ${objectiveKind}.` });
+  if ((executionPlan.progress?.overall_percent || 0) < 100) factors.push({ factor: "Incomplete execution", evidence: `Execution is ${executionPlan.progress?.overall_percent || 0}% complete.` });
+  return factors;
+}
+
+function performanceOpportunityDetection(totals, hasResults) {
+  if (!hasResults) return [];
+  return [
+    totals.reviews > 0 ? { opportunity: "Review growth can be systemized", evidence: "Reviews increased during execution." } : null,
+    totals.whatsapp_messages > 0 ? { opportunity: "WhatsApp can convert attention", evidence: "Messages were recorded." } : null,
+    totals.reservations > 0 ? { opportunity: "Reservation path is working", evidence: "Reservations were recorded." } : null,
+    totals.views > 0 && totals.customers > 0 ? { opportunity: "Visibility may be converting", evidence: "Views and customers were both recorded." } : null,
+  ].filter(Boolean);
+}
+
+function performanceCampaignScore(goalAchievement, impact, executionPlan, hasResults) {
+  if (!hasResults) {
+    return { score: 0, label: "Not measured", rationale: "No real performance data has been recorded." };
+  }
+  const goalPoints = goalAchievement.status === "Achieved" ? 35 : goalAchievement.status === "Partially Achieved" ? 20 : 0;
+  const businessPoints = impact.outcome === "Business movement recorded" ? 30 : 5;
+  const executionPoints = Math.min(Math.round((executionPlan.progress?.overall_percent || 0) * 0.2), 20);
+  const evidencePoints = hasResults ? 15 : 0;
+  const score = Math.min(100, goalPoints + businessPoints + executionPoints + evidencePoints);
+  return {
+    score,
+    label: score >= 75 ? "Strong" : score >= 45 ? "Mixed" : "Weak",
+    rationale: "Score prioritizes goal achievement, real business impact, execution quality and evidence quality.",
+  };
+}
+
+function performanceExecutiveSummary(goalAchievement, successFactors, failureFactors, opportunities, score) {
+  return {
+    campaign_outcome: goalAchievement.status,
+    biggest_win: successFactors[0]?.factor || "No proven win yet",
+    biggest_weakness: failureFactors[0]?.factor || "No major limitation recorded",
+    biggest_lesson: opportunities[0]?.opportunity || (goalAchievement.status === "Not Achieved" ? "Measurement must improve before learning." : "The campaign produced measurable signals."),
+    recommended_focus_area: score.score > 0 ? "Improve the next execution based on recorded business KPIs." : "Record real campaign results before optimizing.",
+  };
+}
+
+function performanceLearningPackage(profile, bestNextMove, totals, goalAchievement, successFactors, failureFactors, opportunities, hasResults) {
+  return {
+    remember: [
+      hasResults ? `Campaign produced ${goalAchievement.status.toLowerCase()} outcome.` : "No result recorded yet.",
+      ...successFactors.slice(0, 2).map((item) => `${item.factor}: ${item.evidence}`),
+    ],
+    correct_assumptions: successFactors.map((item) => item.factor),
+    incorrect_assumptions: failureFactors.map((item) => item.factor),
+    missing_data: [
+      totals.reach === 0 ? "Reach" : "",
+      totals.clicks === 0 ? "Clicks" : "",
+      totals.orders === 0 ? "Orders" : "",
+      totals.repeat_customers === 0 ? "Repeat customers" : "",
+    ].filter(Boolean),
+    improve_next_time: [
+      "Track the primary KPI immediately after publishing.",
+      "Separate visibility metrics from business metrics.",
+      "Record revenue or customer movement whenever possible.",
+    ],
+    passed_to_phase_8: true,
+    source_decision: bestNextMove.campaign_name || "",
+    business_name: profile.identity?.businessName || "",
+    discovered_opportunities: opportunities,
+  };
+}
+
+function runPerformanceMeasurementEngine(profile = defaultBusinessIntelligenceProfile(), businessDiagnosis = {}, bestNextMove = {}, campaignPackage = {}, executionPlan = {}, businessKpis = {}) {
+  const performance = performanceResultsFromInput(businessKpis);
+  const objectiveKind = performanceObjectiveKind(bestNextMove, campaignPackage);
+  const kpiAnalysis = performanceKpiAnalysis(performance.totals, objectiveKind, performance.has_results);
+  const impact = performanceBusinessImpact(performance.totals, objectiveKind, performance.has_results);
+  const goalAchievement = performanceGoalAchievement(performance.totals, objectiveKind, performance.has_results);
+  const successFactors = performanceSuccessFactors(performance.totals, objectiveKind, performance.has_results);
+  const failureFactors = performanceFailureFactors(performance.totals, objectiveKind, performance.has_results, executionPlan);
+  const opportunities = performanceOpportunityDetection(performance.totals, performance.has_results);
+  const score = performanceCampaignScore(goalAchievement, impact, executionPlan, performance.has_results);
+  return {
+    performance_type: "campaign_performance_report",
+    version: "1.0",
+    source: "execution_results",
+    generated_at: new Date().toISOString(),
+    campaign_summary: {
+      campaign_name: bestNextMove.campaign_name || campaignPackage.modules?.campaign_strategy?.campaign_name || "",
+      campaign_objective: campaignPackage.modules?.campaign_strategy?.objective || bestNextMove.expected_impact || "",
+      campaign_duration: campaignPackage.modules?.campaign_strategy?.expected_duration || "",
+      platform: campaignPackage.modules?.campaign_strategy?.recommended_platforms || [],
+      budget: campaignPackage.modules?.campaign_strategy?.estimated_budget || bestNextMove.estimated_cost || "",
+      execution_score: executionPlan.progress?.overall_percent || 0,
+      campaign_status: executionPlan.campaign_status?.current_stage || "Unknown",
+    },
+    kpi_analysis: kpiAnalysis,
+    business_impact: impact,
+    goal_achievement: goalAchievement,
+    success_factors: successFactors,
+    failure_factors: failureFactors,
+    opportunities_detected: opportunities,
+    campaign_score: score,
+    executive_summary: performanceExecutiveSummary(goalAchievement, successFactors, failureFactors, opportunities, score),
+    learning_package: performanceLearningPackage(profile, bestNextMove, performance.totals, goalAchievement, successFactors, failureFactors, opportunities, performance.has_results),
+    confidence: {
+      level: performance.has_results ? "Medium" : "Low",
+      reason: performance.has_results ? "Confidence is based on saved campaign results. Missing KPIs reduce certainty." : "No real result has been recorded yet.",
+    },
+    facts: {
+      result_count: performance.result_count,
+      totals: performance.totals,
+      notes: performance.notes,
+    },
+    hypotheses: performance.has_results ? [] : ["Campaign performance cannot be judged until results are recorded."],
+  };
+}
+
+function learningCampaignFamily(bestNextMove = {}) {
+  return campaignKindFromDecision(bestNextMove);
+}
+
+function learningCaseStudy(profile, diagnosis, bestNextMove, campaignPackage, executionPlan, performanceReport) {
+  return {
+    id: `case-${Date.now()}`,
+    business_type: profile.identity?.businessCategory || profile.identity?.industry || "",
+    business_size: {
+      locations: profile.identity?.numberOfLocations || "",
+      employees: profile.identity?.numberOfEmployees || "",
+      years_in_business: profile.identity?.yearsInBusiness || "",
+    },
+    location: profile.identity?.city || "",
+    business_goal: profile.goals?.primaryGoal || "",
+    business_diagnosis: {
+      health: diagnosis.business_health?.status || "",
+      marketing_maturity: diagnosis.marketing_maturity?.status || "",
+      weakness: diagnosis.biggest_weakness?.label || "",
+      opportunity: diagnosis.biggest_opportunity?.label || "",
+      priority_problem: diagnosis.highest_priority_problem?.label || "",
+    },
+    recommendation: bestNextMove.campaign_name || "",
+    campaign_executed: campaignPackage.modules?.campaign_strategy?.campaign_name || bestNextMove.campaign_name || "",
+    execution_quality: executionPlan.progress?.overall_percent || 0,
+    performance_results: performanceReport.facts?.totals || {},
+    campaign_score: performanceReport.campaign_score || {},
+    business_impact: performanceReport.business_impact || {},
+    lessons_learned: performanceReport.learning_package?.remember || [],
+    confidence_level: performanceReport.confidence?.level || "Low",
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function learningSuccessPatterns(performanceReport = {}, bestNextMove = {}) {
+  if ((performanceReport.campaign_score?.score || 0) < 45) return [];
+  const family = learningCampaignFamily(bestNextMove);
+  return [
+    performanceReport.facts?.totals?.reviews > 0
+      ? { pattern: "Review actions can convert satisfaction into visible trust.", family, evidence: `${performanceReport.facts.totals.reviews} reviews recorded.` }
+      : null,
+    performanceReport.facts?.totals?.revenue > 0
+      ? { pattern: "The campaign created measurable revenue movement.", family, evidence: `${performanceReport.facts.totals.revenue} MAD recorded.` }
+      : null,
+    performanceReport.facts?.totals?.whatsapp_messages > 0
+      ? { pattern: "WhatsApp response is a useful conversion signal.", family, evidence: `${performanceReport.facts.totals.whatsapp_messages} messages recorded.` }
+      : null,
+    performanceReport.facts?.totals?.views > 0
+      ? { pattern: "Visual content generated attention.", family, evidence: `${performanceReport.facts.totals.views} views recorded.` }
+      : null,
+  ].filter(Boolean);
+}
+
+function learningFailurePatterns(performanceReport = {}, bestNextMove = {}) {
+  const family = learningCampaignFamily(bestNextMove);
+  return (performanceReport.failure_factors || []).map((factor) => ({
+    pattern: factor.factor,
+    family,
+    evidence: factor.evidence,
+  }));
+}
+
+function learningConfidenceAdjustment(performanceReport = {}, previousMemory = {}) {
+  const previous = Number(previousMemory.confidence_model?.current_adjustment || 0);
+  const score = Number(performanceReport.campaign_score?.score || 0);
+  const delta = score >= 75 ? 4 : score >= 45 ? 1 : score > 0 ? -3 : 0;
+  return {
+    previous_adjustment: previous,
+    delta,
+    current_adjustment: Math.max(-20, Math.min(20, previous + delta)),
+    reason: score > 0 ? `Adjusted from campaign score ${score}.` : "No adjustment because no measured result exists yet.",
+  };
+}
+
+function learningKnowledgeBaseUpdate(performanceReport = {}, bestNextMove = {}) {
+  const family = learningCampaignFamily(bestNextMove);
+  const success = (performanceReport.campaign_score?.score || 0) >= 45;
+  const update = {
+    campaign_library: [],
+    offer_library: [],
+    hook_library: [],
+    psychology_library: [],
+    benchmark_library: [],
+    competitor_library: [],
+    seasonality_library: [],
+    content_library: [],
+  };
+  update.campaign_library.push({
+    action: success ? "strengthen" : "filter",
+    family,
+    evidence: performanceReport.executive_summary?.campaign_outcome || "No measured outcome yet.",
+  });
+  if (performanceReport.facts?.totals?.reviews > 0) {
+    update.psychology_library.push({ action: "strengthen", principle: "Social Proof", evidence: "Reviews increased." });
+  }
+  if (performanceReport.facts?.totals?.views > 0) {
+    update.content_library.push({ action: "strengthen", format: "Visual content", evidence: "Views recorded." });
+  }
+  if (performanceReport.facts?.totals?.revenue > 0) {
+    update.benchmark_library.push({ action: "update", metric: "Revenue influenced", value: performanceReport.facts.totals.revenue });
+  }
+  if ((performanceReport.opportunities_detected || []).some((item) => /weekend|season/i.test(item.opportunity))) {
+    update.seasonality_library.push({ action: "strengthen", evidence: "Seasonal response detected." });
+  }
+  return update;
+}
+
+function learningBusinessMemory(profile, bestNextMove, performanceReport, previousMemory = {}) {
+  const previousCampaigns = Array.isArray(previousMemory.business_memory?.past_campaigns)
+    ? previousMemory.business_memory.past_campaigns
+    : [];
+  const campaignRecord = {
+    campaign_name: bestNextMove.campaign_name || "",
+    date: new Date().toISOString(),
+    outcome: performanceReport.goal_achievement?.status || "Unknown",
+    score: performanceReport.campaign_score?.score || 0,
+    results: performanceReport.facts?.totals || {},
+  };
+  return {
+    business_name: profile.identity?.businessName || "",
+    past_campaigns: [...previousCampaigns, campaignRecord],
+    successful_offers: performanceReport.campaign_score?.score >= 75 ? [bestNextMove.campaign_name].filter(Boolean) : [],
+    poor_performing_offers: performanceReport.campaign_score?.score > 0 && performanceReport.campaign_score.score < 45 ? [bestNextMove.campaign_name].filter(Boolean) : [],
+    content_preferences: performanceReport.facts?.totals?.views > 0 ? ["Visual content"] : [],
+    execution_habits: [`Execution progress: ${performanceReport.campaign_summary?.execution_score || 0}%`],
+    business_constraints: [profile.context?.constraints].filter(Boolean),
+    last_updated: new Date().toISOString(),
+  };
+}
+
+function learningSimilarityProfile(profile, diagnosis, performanceReport) {
+  return {
+    industry: profile.identity?.industry || "",
+    business_model: profile.identity?.businessCategory || "",
+    target_audience: profile.customers?.targetAudience || "",
+    goals: [profile.goals?.primaryGoal, profile.goals?.secondaryGoal].filter(Boolean),
+    problems: [diagnosis.highest_priority_problem?.label, diagnosis.biggest_weakness?.label].filter(Boolean),
+    budget: profile.resources?.monthlyMarketingBudget || "Unknown",
+    marketing_maturity: diagnosis.marketing_maturity?.status || "",
+    business_diagnosis: diagnosis.business_health?.status || "",
+    campaign_results: performanceReport.facts?.totals || {},
+    similarity_keys: [
+      profile.identity?.industry,
+      profile.identity?.businessCategory,
+      profile.goals?.primaryGoal,
+      diagnosis.highest_priority_problem?.label,
+      diagnosis.marketing_maturity?.status,
+    ].filter(Boolean),
+  };
+}
+
+function learningRecommendationImprovement(performanceReport = {}) {
+  return {
+    correct_assumptions: performanceReport.learning_package?.correct_assumptions || [],
+    incorrect_assumptions: performanceReport.learning_package?.incorrect_assumptions || [],
+    missing_information: performanceReport.learning_package?.missing_data || [],
+    libraries_to_improve: Object.entries({
+      campaign_library: true,
+      benchmark_library: (performanceReport.facts?.totals?.revenue || 0) > 0,
+      content_library: (performanceReport.facts?.totals?.views || 0) > 0,
+      psychology_library: (performanceReport.facts?.totals?.reviews || 0) > 0,
+    })
+      .filter(([, active]) => active)
+      .map(([library]) => library),
+    strongest_framework_signal: performanceReport.success_factors?.[0]?.factor || "Insufficient evidence",
+    future_change: performanceReport.campaign_score?.score > 0
+      ? "Use measured business KPIs before increasing confidence."
+      : "Require result entry before changing future recommendations.",
+  };
+}
+
+function learningReport(successPatterns, failurePatterns, confidenceAdjustment, knowledgeUpdate, performanceReport) {
+  return {
+    biggest_success: successPatterns[0]?.pattern || "No validated success yet",
+    biggest_failure: failurePatterns[0]?.pattern || "No validated failure yet",
+    most_valuable_lesson: performanceReport.executive_summary?.biggest_lesson || "No lesson until results are recorded.",
+    highest_roi_action: performanceReport.facts?.totals?.revenue > 0 ? performanceReport.campaign_summary?.campaign_name : "",
+    most_reliable_pattern: successPatterns[0]?.pattern || "",
+    confidence_update: confidenceAdjustment,
+    knowledge_updated: Object.fromEntries(Object.entries(knowledgeUpdate).map(([key, value]) => [key, value.length])),
+  };
+}
+
+function runLearningEngine(profile = defaultBusinessIntelligenceProfile(), diagnosis = {}, bestNextMove = {}, campaignPackage = {}, executionPlan = {}, performanceReport = {}, campaignResults = {}) {
+  const previousMemory = campaignResults.previousLearningMemory || {};
+  const caseStudy = learningCaseStudy(profile, diagnosis, bestNextMove, campaignPackage, executionPlan, performanceReport);
+  const successPatterns = learningSuccessPatterns(performanceReport, bestNextMove);
+  const failurePatterns = learningFailurePatterns(performanceReport, bestNextMove);
+  const confidenceAdjustment = learningConfidenceAdjustment(performanceReport, previousMemory);
+  const knowledgeUpdate = learningKnowledgeBaseUpdate(performanceReport, bestNextMove);
+  const businessMemory = learningBusinessMemory(profile, bestNextMove, performanceReport, previousMemory);
+  const similarityProfile = learningSimilarityProfile(profile, diagnosis, performanceReport);
+  const recommendationImprovement = learningRecommendationImprovement(performanceReport);
+  const report = learningReport(successPatterns, failurePatterns, confidenceAdjustment, knowledgeUpdate, performanceReport);
+
+  return {
+    learning_type: "campaign_learning_memory",
+    version: "1.0",
+    source: "performance_measurement",
+    generated_at: new Date().toISOString(),
+    case_study: caseStudy,
+    success_patterns: successPatterns,
+    failure_patterns: failurePatterns,
+    confidence_model: confidenceAdjustment,
+    knowledge_base_update: knowledgeUpdate,
+    business_memory: businessMemory,
+    similarity_profile: similarityProfile,
+    recommendation_improvement: recommendationImprovement,
+    learning_report: report,
+    history_policy: {
+      append_only: true,
+      never_overwrite_historical_data: true,
+      evidence_over_assumptions: true,
+    },
+  };
+}
+
 function growthAreaDefinitions() {
   return {
     customers: {
@@ -5347,11 +8391,29 @@ function renderTodayPage() {
   const state = stableState();
   const health = calculateBusinessHealth(state);
   const recommendation = homeRecommendation(state);
+  const opportunity = businessOpportunitySummary(state);
   const mission = missionForCampaign(state.studioMission?.activeCampaignId || recommendation.campaignId, state.studioMission);
   const missionApproved = Array.isArray(mission.clips) ? mission.clips.filter((clip) => clip.status === "approved").length : 0;
   const missionProgress = Math.max(Math.min((Number(state.weeklyCompleted || 2) / 5) * 100, 100), Math.min((missionApproved / 5) * 100, 100));
   const reviewProgress = Math.min((Number(state.reviews || 334) / 500) * 100, 100);
   const weekendRevenue = Number(state.revenue || 31400) > 0 ? "3 200 MAD" : "À suivre";
+  const recommendationIsContent = recommendation.targetPage === "studio";
+  const impactMetrics = recommendationIsContent
+    ? [
+        ["Time", "15 min"],
+        ["Cost", "0 MAD"],
+        ["Potential", "4 reservations"],
+        ["Visibility", "+15%"],
+      ]
+    : [
+        ["Time", "5 min"],
+        ["Cost", "0 MAD"],
+        ["Potential", "+800 MAD"],
+        ["Visibility", "+15%"],
+      ];
+  const execution = state.executionPlan || runExecutionManager(state.businessIntelligenceProfile, state.businessDiagnosis, state.bestNextMove, state.campaignPackage);
+  const activeResult = execution.todays_next_action?.expected_result || (recommendationIsContent ? "1 reel ready to film" : "+7 customers mentioning Google");
+  const activeNextAction = execution.todays_next_action?.title || (recommendationIsContent ? "Film the cheese pull hook" : "Train staff review script");
   pageTitle.textContent = `SOLO · ${frenchTodayDate()}`;
 
   contentStage.innerHTML = `
@@ -5360,6 +8422,29 @@ function renderTodayPage() {
         <p>Bonjour Hiba</p>
         <h2>Voici ce qu'il faut faire aujourd'hui.</h2>
       </header>
+
+      <section class="home-kpi-bar" aria-label="Résumé financier">
+        <article class="home-kpi home-kpi--money">
+          <span>Revenue generated</span>
+          <strong>${Number(state.revenue || 31400).toLocaleString()} MAD</strong>
+          <small>Potential this week: +800 MAD</small>
+        </article>
+        <article class="home-kpi home-kpi--money">
+          <span>ROI</span>
+          <strong>5.8x</strong>
+          <small>Estimated from active campaigns</small>
+        </article>
+        <article class="home-kpi">
+          <span>Google rating</span>
+          <strong>${Number(state.businessProfile?.googleRating || 4.5).toFixed(1)}</strong>
+          <small>Strong customer satisfaction</small>
+        </article>
+        <article class="home-kpi">
+          <span>Google reviews</span>
+          <strong>${state.reviews || 334} / 500</strong>
+          <small>${Math.round(reviewProgress)}% of target</small>
+        </article>
+      </section>
 
       <section class="business-health-card business-health-card--compact" aria-label="Santé du commerce">
         <div class="health-score-ring" data-health-circle style="--health-color:${health.color}; --health-progress:${health.score * 3.6}deg">
@@ -5385,65 +8470,112 @@ function renderTodayPage() {
           <div class="recalculation-dots" aria-hidden="true"><i></i><i></i><i></i></div>
         </section>
       ` : `
-      <section class="best-next-move-card best-next-move-card--intelligent">
-        <div class="best-next-move-copy">
-          <div class="recommendation-title-row">
-            <span>${recommendation.eyebrow}</span>
-            <strong>${recommendation.confidence} confiance</strong>
-          </div>
-          <h3>${recommendation.title}</h3>
-          <p>${recommendation.why}</p>
-          <div class="why-recommendation">
-            <span>Pourquoi Harvest recommande ceci</span>
-            <ul>
-              ${recommendation.bullets.map((item) => `<li>${item}</li>`).join("")}
-            </ul>
-          </div>
-          <div class="decision-based-on">
-            <span>Décision basée sur</span>
-            <div>${recommendation.basedOn.map((item) => `<strong>${item}</strong>`).join("")}</div>
+      <section class="business-opportunity-card">
+        <div class="business-opportunity-main">
+          <span>Biggest Opportunity This Month</span>
+          <h3>${opportunity.title}</h3>
+          <div class="business-value-row" aria-label="Business value">
+            <div>
+              <span>Estimated value</span>
+              <strong>${opportunity.estimatedValue}</strong>
+            </div>
+            <div>
+              <span>Based on</span>
+              <strong>${opportunity.basedOn}</strong>
+            </div>
+            <div>
+              <span>Effort</span>
+              <strong>${opportunity.effort}</strong>
+            </div>
+            <div>
+              <span>Difficulty</span>
+              <strong>${opportunity.difficulty}</strong>
+            </div>
+            <div>
+              <span>Confidence</span>
+              <strong>${opportunity.confidence}</strong>
+            </div>
           </div>
         </div>
-        <div class="best-next-move-footer">
-          <div class="move-badges">
-            <span>${recommendation.opportunity}</span>
-            <span>${recommendation.impact}</span>
-            <span>${recommendation.duration}</span>
-          </div>
-          <button type="button" data-demo-action="home-best-move" data-target-page="${recommendation.targetPage}" data-campaign-id="${recommendation.campaignId}">
-            ${recommendation.cta}
+
+        <div class="opportunity-explanation">
+          <span>Why SOLO recommends this</span>
+          <p>${opportunity.why}</p>
+        </div>
+
+        <div class="next-action-box">
+          <span>What to do next</span>
+          <strong>${opportunity.action}</strong>
+          <button type="button" data-demo-action="accept-opportunity" data-target-page="${opportunity.targetPage}" data-campaign-id="${opportunity.campaignId}">
+            Prepare this for me
           </button>
         </div>
       </section>
       `}
 
+      ${state.opportunityAccepted ? `
+      <section class="solo-prepared-card">
+        <div>
+          <span>SOLO prepared everything</span>
+          <h3>${opportunity.campaignName}</h3>
+          <p>Use these simple pieces to execute without thinking.</p>
+        </div>
+        <div class="prepared-assets-grid">
+          <article><span>WhatsApp message</span><p>${opportunity.prepared.whatsapp}</p></article>
+          <article><span>Instagram story</span><p>${opportunity.prepared.instagram}</p></article>
+          <article><span>Google review request</span><p>${opportunity.prepared.google}</p></article>
+          <article><span>Simple checklist</span><ul>${opportunity.prepared.checklist.map((item) => `<li>${item}</li>`).join("")}</ul></article>
+        </div>
+        <button type="button" data-demo-action="home-best-move" data-target-page="${opportunity.targetPage}" data-campaign-id="${opportunity.campaignId}">
+          Open prepared plan
+        </button>
+      </section>
+
       <section class="home-mini-grid" aria-label="Résumé">
-        <article class="home-mini-card">
+        <article class="home-mini-card active-mission-card">
           <div>
-            <span>Mission actuelle</span>
-            <h3>${mission.name}</h3>
-            <p>${mission.objective}</p>
+            <span>Current campaign</span>
+            <h3>${execution.campaign_name || mission.name}</h3>
+            <p>${execution.motivation?.message || mission.objective}</p>
           </div>
-          <div class="home-progress-row">
-            <strong>${state.weeklyCompleted || 2} / 5 étapes</strong>
-            <div class="today-progress-track"><span style="width:${missionProgress}%"></span></div>
+          <div class="campaign-tracker-grid">
+            <div>
+              <span>Progress</span>
+              <strong>${execution.progress?.completed_tasks ?? (state.weeklyCompleted || 2)} / ${execution.progress?.total_tasks || 5} tasks</strong>
+              <div class="today-progress-track"><span style="width:${execution.progress?.overall_percent ?? missionProgress}%"></span></div>
+            </div>
+            <div>
+              <span>Next action</span>
+              <strong>${activeNextAction}</strong>
+            </div>
+            <div>
+              <span>Result so far</span>
+              <strong>${activeResult}</strong>
+            </div>
           </div>
-          <button type="button" class="home-text-link" data-demo-action="campaign-to-studio" data-campaign-id="${mission.activeCampaignId || recommendation.campaignId}">Continuer →</button>
+          <button type="button" data-demo-action="campaign-to-studio" data-campaign-id="${mission.activeCampaignId || recommendation.campaignId}">Continue</button>
         </article>
 
-        <article class="home-mini-card">
+        <article class="home-mini-card opportunity-preview-card">
+          <div class="opportunity-preview-visual" aria-hidden="true">
+            <span>Weekend</span>
+            <strong>Family Menu</strong>
+          </div>
           <div>
-            <span>Opportunité du week-end</span>
+            <span>Opportunity</span>
             <h3>Menu famille du week-end</h3>
             <p>Mettre en avant une offre simple avant vendredi.</p>
           </div>
-          <div class="home-progress-row">
-            <strong>${weekendRevenue}</strong>
-            <small>résultat estimé la semaine dernière</small>
+          <div class="opportunity-detail-row">
+            <div><span>Expected</span><strong>+4 tables</strong></div>
+            <div><span>Difficulty</span><strong>Low</strong></div>
+            <div><span>Deadline</span><strong>Friday</strong></div>
           </div>
-          <button type="button" class="home-text-link" data-demo-action="campaign-detail" data-campaign-id="weekend-family-menu">Voir →</button>
+          <small>Last week result: ${weekendRevenue}</small>
+          <button type="button" data-demo-action="campaign-detail" data-campaign-id="weekend-family-menu">Voir</button>
         </article>
       </section>
+      ` : ""}
 
       <section class="recent-wins-card">
         <span>VICTOIRES RÉCENTES</span>
