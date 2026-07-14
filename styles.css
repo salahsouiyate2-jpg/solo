@@ -13572,6 +13572,29 @@ body[data-page] .sidebar {
 .owner-result-notes, .owner-result-form button { grid-column: 1 / -1; }
 .owner-result-summary article { display: grid; gap: 7px; padding-top: 14px; border-top: 1px solid var(--solo-line); }
 
+.owner-business-memory {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 0.5px solid var(--solo-line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.owner-business-memory__heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.owner-business-memory__heading span,
+.owner-business-memory__learning span { color: var(--solo-green-dark); font-size: 0.74rem; font-weight: 850; letter-spacing: 0.06em; text-transform: uppercase; }
+.owner-business-memory__heading strong { color: var(--solo-ink); font-size: 1.12rem; }
+.owner-business-memory__facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; border: 0.5px solid var(--solo-line); border-radius: 12px; }
+.owner-business-memory__facts div { display: grid; gap: 5px; padding: 14px; border-right: 0.5px solid var(--solo-line); border-bottom: 0.5px solid var(--solo-line); }
+.owner-business-memory__facts div:nth-child(3n) { border-right: 0; }
+.owner-business-memory__facts div:nth-last-child(-n + 3) { border-bottom: 0; }
+.owner-business-memory__facts span { color: var(--solo-muted); font-size: 0.7rem; font-weight: 750; text-transform: uppercase; }
+.owner-business-memory__facts strong { color: var(--solo-ink); }
+.owner-business-memory__learning { display: grid; gap: 8px; padding: 16px; border-radius: 12px; background: #faf9f5; }
+.owner-business-memory__learning p, .owner-business-memory__promise { margin: 0; color: var(--solo-muted); line-height: 1.5; }
+.owner-business-memory__promise { font-weight: 700; color: var(--solo-ink); }
+
 .marketing-plan-review { max-width: 920px; }
 .marketing-plan-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .marketing-plan-facts div:first-child strong { color: var(--solo-ink); font-size: 0.95rem; }
@@ -14148,6 +14171,11 @@ body[data-page] .sidebar {
   .marketing-plan-ready button { width: 100%; }
   .owner-result-form { grid-template-columns: 1fr; }
   .owner-result-form > * { grid-column: 1; }
+  .owner-business-memory__facts { grid-template-columns: 1fr; }
+  .owner-business-memory__facts div { border-right: 0; border-bottom: 0.5px solid var(--solo-line); }
+  .owner-business-memory__facts div:nth-last-child(-n + 3) { border-bottom: 0.5px solid var(--solo-line); }
+  .owner-business-memory__facts div:last-child { border-bottom: 0; }
+  .owner-business-memory__heading { align-items: flex-start; flex-direction: column; }
 
   .next-action-box button,
   .solo-prepared-card > button {
@@ -14191,4 +14219,217 @@ body:is([data-page="signup"], [data-page="welcome"], [data-page="onboarding"], [
   min-height: 100vh;
   display: grid;
   align-items: center;
+}
+
+/* SOLO Help Up visual identity — presentation only */
+:root {
+  --solo-green: #065f46;
+  --solo-green-dark: #065f46;
+  --solo-ink: #111827;
+  --solo-muted: #667066;
+  --solo-gold: #a7cba8;
+  --solo-line: rgba(17, 24, 39, 0.1);
+  --bg: #f7f4ed;
+  --surface: #e8e4da;
+  --card: #f7f4ed;
+  --ink: #111827;
+  --muted: #667066;
+  --line: rgba(17, 24, 39, 0.1);
+  --line-strong: rgba(6, 95, 70, 0.18);
+  --shadow: 0 4px 20px rgba(16, 24, 40, 0.06);
+  --shadow-soft: 0 4px 20px rgba(16, 24, 40, 0.045);
+}
+
+html,
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html,
+body,
+.app-shell,
+.main-panel,
+body[data-page],
+body[data-page] .main-panel {
+  background: #f7f4ed;
+  color: #111827;
+}
+
+body::before { display: none; }
+
+.sidebar,
+body[data-page] .sidebar {
+  background: #065f46;
+  border-right: 0;
+  box-shadow: none;
+}
+
+.brand { padding-bottom: 24px; border-color: rgba(255, 255, 255, 0.14); }
+.brand-mark { width: 52px; height: 52px; border: 0; border-radius: 16px; background: #f7f4ed; box-shadow: 0 4px 20px rgba(16, 24, 40, 0.08); overflow: hidden; }
+.brand-mark img { width: 84%; height: 84%; object-fit: contain; object-position: center; }
+.brand-name { font-weight: 800; letter-spacing: 0.08em; }
+.brand-meta { color: rgba(255, 255, 255, 0.7); }
+
+.nav-list { gap: 8px; }
+.nav-item { min-height: 46px; border-radius: 12px; color: rgba(255, 255, 255, 0.82); }
+.nav-item:hover { background: rgba(255, 255, 255, 0.09); }
+.nav-item.is-active { background: rgba(231, 243, 234, 0.18); color: #fff; box-shadow: none; }
+.nav-item.is-active svg,
+.nav-item.is-active span { color: #fff; }
+
+.business-card { border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 16px; background: rgba(255, 255, 255, 0.08); box-shadow: none; }
+.business-avatar { border: 0; background: #f7f4ed; overflow: hidden; }
+.business-avatar img { width: 82%; height: 82%; object-fit: contain; object-position: center; }
+.business-card__metric strong { color: #fff; }
+
+.topbar { min-height: 76px; padding-inline: clamp(24px, 4vw, 56px); border-bottom: 1px solid rgba(17, 24, 39, 0.08); background: rgba(247, 244, 237, 0.94); box-shadow: none; }
+.topbar-brand-line { color: #111827; font-weight: 750; letter-spacing: -0.02em; }
+.icon-button { border: 1px solid rgba(17, 24, 39, 0.09); background: #e8e4da; color: #065f46; box-shadow: none; }
+
+.content-stage,
+body[data-page] .content-stage {
+  padding: clamp(30px, 5vw, 68px);
+  background: #f7f4ed;
+  color: #111827;
+}
+
+.growth-os-page,
+.solo-home-page,
+.settings-os-page,
+.focus-workflow-page {
+  gap: clamp(24px, 3vw, 38px);
+}
+
+h1, h2, h3, h4,
+.growth-os-header h2,
+.solo-home-heading h2,
+.business-opportunity-main h3 {
+  color: #111827;
+  letter-spacing: -0.035em;
+}
+
+.growth-os-header p,
+.solo-home-heading p,
+.section-note,
+.loop-group > p { color: #667066; }
+.section-label { color: #065f46; letter-spacing: 0.08em; }
+
+.business-health-card,
+.business-opportunity-card,
+.guided-empty-state,
+.settings-section,
+.loop-group,
+.marketing-opportunity-card,
+.marketing-area-detail > div,
+.marketing-plan-ready,
+.owner-execution-progress,
+.owner-result-next,
+.owner-result-card,
+.owner-result-summary,
+.owner-business-memory,
+.solo-prepared-card,
+.relationship-system,
+.result-summary-line {
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 16px;
+  background: #f7f4ed;
+  box-shadow: 0 4px 20px rgba(16, 24, 40, 0.055);
+}
+
+.opportunity-explanation,
+.next-action-box,
+.marketing-plan-steps,
+.owner-business-memory__learning,
+.prepared-assets-grid article,
+.health-status-copy,
+.business-value-row,
+.business-value-row div,
+.owner-result-summary article {
+  background: #e8e4da;
+  box-shadow: none;
+}
+
+.business-value-row { border-color: rgba(17, 24, 39, 0.08); }
+.business-value-row div { border-color: rgba(17, 24, 39, 0.08); }
+.business-value-row strong,
+.opportunity-explanation p,
+.next-action-box strong { color: #111827; }
+
+.selected-marketing-area { border-radius: 16px; background: #e7f3ea; color: #111827; }
+.marketing-area-status,
+.move-badges span { padding: 6px 10px; border-radius: 999px; background: #e7f3ea; color: #065f46; }
+.active-campaign-confirmation,
+.owner-current-task { border-radius: 16px; background: #065f46; box-shadow: 0 4px 20px rgba(6, 95, 70, 0.12); }
+.owner-current-task > span { color: #e7f3ea; }
+
+.content-stage button:not(.icon-button):not(.button-secondary),
+.account-actions button:not(.button-secondary),
+.settings-section > button,
+.owner-result-form button {
+  border: 1px solid #065f46;
+  border-radius: 12px;
+  background: #065f46;
+  color: #fff;
+  box-shadow: none;
+}
+
+.content-stage .button-secondary,
+.marketing-opportunity-card .button-secondary {
+  border: 1px solid rgba(6, 95, 70, 0.24);
+  border-radius: 12px;
+  background: #f7f4ed;
+  color: #065f46;
+  box-shadow: none;
+}
+
+.content-stage button:hover { transform: none; filter: brightness(0.97); }
+
+.settings-field input,
+.settings-field select,
+.owner-result-form input,
+.owner-result-form textarea,
+input,
+select,
+textarea {
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 12px;
+  background: #f7f4ed;
+  color: #111827;
+  box-shadow: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus { outline: 3px solid rgba(167, 203, 168, 0.38); border-color: #065f46; }
+
+.today-progress-track,
+.progress-track,
+.hero-progress-bar { background: #e8e4da; }
+.today-progress-track span,
+.progress-track span,
+.hero-progress-bar span { background: #065f46; }
+
+.execution-step__number { background: #e8e4da; color: #667066; }
+.execution-step.is-active .execution-step__number { background: #065f46; color: #fff; }
+.execution-step.is-complete .execution-step__number { background: #e7f3ea; color: #065f46; }
+.execution-step.is-pending { opacity: 0.54; }
+
+body:is([data-page="signup"], [data-page="welcome"], [data-page="onboarding"], [data-page="harvest-analysis"]) .content-stage {
+  background: #f7f4ed;
+  padding: clamp(28px, 7vw, 90px);
+}
+
+@media (max-width: 720px) {
+  .content-stage,
+  body[data-page] .content-stage { padding: 24px 18px 96px; }
+  .topbar { min-height: 66px; padding-inline: 18px; }
+  .business-health-card,
+  .business-opportunity-card,
+  .settings-section,
+  .loop-group,
+  .owner-business-memory { padding: 20px; }
 }

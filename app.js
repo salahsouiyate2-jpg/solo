@@ -462,6 +462,7 @@ function defaultRealState() {
     campaigns: {},
     marketingPlan: null,
     activeCampaign: null,
+    businessMemory: null,
     results: [],
     learning_events: [],
     completedPlanSteps: {},
@@ -1257,6 +1258,7 @@ document.addEventListener("submit", (event) => {
         notes: String(data.get("notes") || "").trim(),
         recorded_at: new Date().toISOString(),
       };
+      state.businessMemory = createOwnerBusinessMemory(state, campaign);
       state.activeCampaign = campaign;
       saveDemoState();
       setActivePage("campaigns");
@@ -2456,6 +2458,58 @@ function summarizeOwnerCampaignResult(result = {}) {
     next_step: "Keep this as the final recorded result for this campaign.",
     notes: result.notes || "",
   };
+}
+
+function businessMemoryInsight(area = "", result = {}) {
+  const customers = Number(result.customers_gained || 0);
+  const reviews = Number(result.reviews_received || 0);
+  const messages = Number(result.messages_or_leads || 0);
+  if (reviews > 0) return `${reviews} review${reviews === 1 ? " was" : "s were"} recorded after the ${area} campaign. This is useful context, not proof of causation.`;
+  if (customers > 0) return `${customers} additional customer${customers === 1 ? " was" : "s were"} recorded during the ${area} campaign period.`;
+  if (messages > 0) return `${messages} message${messages === 1 ? " or lead was" : "s or leads were"} recorded during the ${area} campaign period.`;
+  return `No positive result was recorded for the ${area} campaign. This experience remains useful business context.`;
+}
+
+function createOwnerBusinessMemory(state, campaign) {
+  const result = campaign.result || {};
+  const summary = summarizeOwnerCampaignResult(result);
+  const outcome = summary.assessment === "Does not have enough data" ? "Insufficient data" : summary.assessment;
+  return {
+    memory_type: "business_memory",
+    business_name: state.businessIntelligenceProfile?.identity?.businessName || "",
+    marketing_area: campaign.area_name || marketingOpportunityAreas()[campaign.area_id]?.title || "Marketing",
+    campaign_objective: campaign.objective || "",
+    campaign_title: campaign.title || "",
+    date_completed: campaign.completed_at || result.recorded_at || "",
+    recorded_results: { ...result },
+    harvest_summary: { ...summary, assessment: outcome },
+    outcome,
+    insight: businessMemoryInsight(campaign.area_name || "marketing", result),
+    created_at: new Date().toISOString(),
+  };
+}
+
+function renderOwnerBusinessMemory(memory) {
+  const result = memory.recorded_results || {};
+  const completedDate = memory.date_completed
+    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(new Date(memory.date_completed))
+    : "Not recorded";
+  const optionalMetric = (value, suffix = "") => value === null || value === undefined ? "Not recorded" : `${Number(value).toLocaleString("en-US")}${suffix}`;
+  return `
+    <section class="owner-business-memory">
+      <div class="owner-business-memory__heading"><span>Business Memory</span><strong>Previous Campaign</strong></div>
+      <div class="owner-business-memory__facts">
+        <div><span>Area</span><strong>${studioEscape(memory.marketing_area)}</strong></div>
+        <div><span>Outcome</span><strong>${studioEscape(memory.outcome)}</strong></div>
+        <div><span>Date completed</span><strong>${studioEscape(completedDate)}</strong></div>
+        <div><span>Customers gained</span><strong>${Number(result.customers_gained || 0)}</strong></div>
+        <div><span>Reviews received</span><strong>${Number(result.reviews_received || 0)}</strong></div>
+        <div><span>Revenue generated</span><strong>${studioEscape(optionalMetric(result.revenue_generated, " MAD"))}</strong></div>
+      </div>
+      <div class="owner-business-memory__learning"><span>Harvest learned</span><p>${studioEscape(memory.insight)}</p></div>
+      <p class="owner-business-memory__promise">I'll use this experience when preparing your next recommendation.</p>
+    </section>
+  `;
 }
 
 function renderOwnerCampaignResultForm() {
@@ -9490,6 +9544,11 @@ function renderRealTodayPage() {
   const selectedArea = opportunities[journey.selectedMarketingArea];
   const marketingPlan = state.marketingPlan?.status === "draft" ? state.marketingPlan : null;
   const activeCampaign = state.activeCampaign?.status === "active" ? state.activeCampaign : null;
+  if (!state.businessMemory && state.activeCampaign?.status === "completed" && state.activeCampaign.result) {
+    state.businessMemory = createOwnerBusinessMemory(state, state.activeCampaign);
+    saveDemoState();
+  }
+  const businessMemory = state.businessMemory;
   pageTitle.textContent = "SOLO · Today";
   contentStage.innerHTML = `
     <div class="solo-home-page">
@@ -9514,6 +9573,7 @@ function renderRealTodayPage() {
       ${selectedArea ? `<section class="selected-marketing-area"><span>Selected Marketing Area</span><strong>You chose to work on ${studioEscape(selectedArea.title)}.</strong></section>` : ""}
       ${marketingPlan ? `<section class="marketing-plan-ready"><div><span>YOUR NEXT STEP</span><strong>Your Marketing Plan is ready.</strong><p>${studioEscape(marketingPlan.title)} has been prepared for review.</p></div><button type="button" data-demo-action="review-marketing-plan">Review plan</button></section>` : ""}
       ${activeCampaign ? `<section class="active-campaign-confirmation"><span>ACTIVE CAMPAIGN</span><strong>Your marketing plan is now active.</strong><p>${studioEscape(activeCampaign.title)}</p><button type="button" data-demo-action="open-campaign-execution">Continue campaign</button></section>` : ""}
+      ${businessMemory ? renderOwnerBusinessMemory(businessMemory) : ""}
       <section class="loop-group">
         <div class="loop-group__heading"><span>Marketing Opportunities</span><strong>Other areas you can explore</strong></div>
         <p>These are business improvement areas, not recommendations. You decide what is worth exploring.</p>
