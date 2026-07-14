@@ -13515,6 +13515,29 @@ body[data-page] .sidebar {
 .active-campaign-confirmation span { color: rgba(255, 255, 255, 0.68); font-size: 0.72rem; font-weight: 850; letter-spacing: 0.06em; }
 .active-campaign-confirmation strong { font-size: 1.15rem; }
 .active-campaign-confirmation p { margin: 0; color: rgba(255, 255, 255, 0.78); }
+.active-campaign-confirmation button {
+  justify-self: start;
+  min-height: 40px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--solo-ink);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.owner-execution-page { max-width: 900px; }
+.owner-execution-progress { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 18px; padding: 20px; border: 0.5px solid var(--solo-line); border-radius: 14px; background: #fff; }
+.owner-execution-progress > div:first-child { display: flex; justify-content: space-between; gap: 18px; color: var(--solo-ink); }
+.owner-execution-progress .today-progress-track { grid-column: 1 / -1; }
+.owner-execution-progress small { grid-column: 2; grid-row: 1; color: var(--solo-muted); }
+.owner-current-task { display: grid; gap: 10px; padding: 24px; border-radius: 16px; background: var(--solo-ink); color: #fff; }
+.owner-current-task > span { color: var(--solo-gold); font-size: 0.74rem; font-weight: 850; letter-spacing: 0.06em; text-transform: uppercase; }
+.owner-current-task h3, .owner-current-task p { margin: 0; }
+.owner-current-task p, .owner-current-task small { color: rgba(255, 255, 255, 0.75); }
+.owner-current-task button { justify-self: start; min-height: 42px; padding: 0 16px; border: 0; border-radius: 9px; background: #fff; color: var(--solo-ink); font: inherit; font-weight: 800; cursor: pointer; }
 
 .marketing-plan-review { max-width: 920px; }
 .marketing-plan-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -14117,4 +14140,20 @@ body[data-page] .sidebar {
   .recent-wins-list em {
     padding-left: 22px;
   }
+}
+
+/* Dedicated owner journey routes occupy the full workspace before Today begins. */
+body:is([data-page="signup"], [data-page="welcome"], [data-page="onboarding"], [data-page="harvest-analysis"]) .app-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body:is([data-page="signup"], [data-page="welcome"], [data-page="onboarding"], [data-page="harvest-analysis"]) .sidebar,
+body:is([data-page="signup"], [data-page="welcome"], [data-page="onboarding"], [data-page="harvest-analysis"]) .topbar {
+  display: none;
+}
+
+body:is([data-page="signup"], [data-page="welcome"], [data-page="onboarding"], [data-page="harvest-analysis"]) .content-stage {
+  min-height: 100vh;
+  display: grid;
+  align-items: center;
 }

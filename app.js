@@ -70,6 +70,10 @@
     label: "Marketing Plan",
     heading: "Marketing Plan",
   },
+  { id: "signup", label: "Sign Up", heading: "Sign Up" },
+  { id: "welcome", label: "Welcome", heading: "Welcome" },
+  { id: "onboarding", label: "Business Onboarding", heading: "Business Onboarding" },
+  { id: "harvest-analysis", label: "Harvest Analysis", heading: "Harvest Analysis" },
 ];
 
 const navList = document.querySelector("#nav-list");
@@ -1175,7 +1179,7 @@ document.addEventListener("submit", (event) => {
       };
       journey.accountCreated = true;
       saveDemoState();
-      setActivePage("today", false);
+      setActivePage("welcome");
       return;
     }
 
@@ -1192,7 +1196,7 @@ document.addEventListener("submit", (event) => {
       journey.onboardingStep = 2;
       state.businessProfile = legacyBusinessProfileFromIntelligence(state.businessIntelligenceProfile);
       saveDemoState();
-      setActivePage("today", false);
+      setActivePage("onboarding", false);
       return;
     }
 
@@ -1228,7 +1232,7 @@ document.addEventListener("submit", (event) => {
       journey.analysisCompleted = true;
       journey.analysisReviewed = false;
       saveDemoState();
-      setActivePage("today", false);
+      setActivePage("harvest-analysis");
       return;
     }
   }
@@ -2320,6 +2324,58 @@ function simpleWorkflowCard(title, detail, meta, action = "Continue", demoAction
       </div>
       <button type="button"${demoAction ? ` data-demo-action="${demoAction}"${extraData}` : ""}>${action}</button>
     </article>
+  `;
+}
+
+function renderRealCampaignExecutionPage() {
+  const state = stableState();
+  const campaign = ensureActiveCampaignExecution(state.activeCampaign);
+  if (!campaign) {
+    renderRealEmptyPage("Campaigns", "No active campaign yet.", "Approve one Marketing Plan before starting execution.");
+    return;
+  }
+  state.activeCampaign = campaign;
+  saveDemoState();
+
+  const tasks = campaign.execution?.tasks || [];
+  const completedCount = tasks.filter((task) => task.status === "Completed").length;
+  const progress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
+  const isCompleted = campaign.status === "completed" || (tasks.length > 0 && completedCount === tasks.length);
+  const currentIndex = Math.min(Number(campaign.execution?.current_task_index || 0), Math.max(tasks.length - 1, 0));
+  const currentTask = isCompleted ? null : tasks[currentIndex];
+
+  contentStage.innerHTML = `
+    <div class="growth-os-page owner-execution-page">
+      <header class="growth-os-header">
+        <p class="section-label">${isCompleted ? "Campaign complete" : "Active Campaign"}</p>
+        <h2>${isCompleted ? "Campaign completed." : studioEscape(campaign.title)}</h2>
+        <p>${isCompleted ? "Every task in this campaign has been completed." : "Harvest will guide you through one task at a time."}</p>
+      </header>
+      <section class="owner-execution-progress">
+        <div><span>Overall progress</span><strong>${completedCount} of ${tasks.length} tasks completed</strong></div>
+        <div class="today-progress-track"><span style="width:${progress}%"></span></div>
+        <small>${progress}%</small>
+      </section>
+      ${currentTask ? `
+        <section class="owner-current-task">
+          <span>Your next step</span>
+          <h3>${studioEscape(currentTask.title)}</h3>
+          <p>${studioEscape(currentTask.explanation)}</p>
+          <small>Estimated time: ${studioEscape(currentTask.estimated_time)}</small>
+          <button type="button" data-demo-action="complete-current-campaign-task">Mark task complete</button>
+        </section>
+      ` : ""}
+      <section class="business-opportunity-card">
+        <div class="loop-group__heading"><span>Execution checklist</span><strong>One campaign</strong></div>
+        <div class="execution-flow">
+          ${tasks.map((task, index) => {
+            const complete = task.status === "Completed";
+            const active = !isCompleted && index === currentIndex;
+            return `<article class="execution-step ${complete ? "is-complete" : active ? "is-active" : "is-pending"}"><span class="execution-step__number">${complete ? "✓" : index + 1}</span><div><strong>${studioEscape(task.title)}</strong><p>${studioEscape(task.explanation)}</p><small>${studioEscape(task.estimated_time)}</small></div><span class="execution-step__status">${complete ? "Completed" : "Pending"}</span></article>`;
+          }).join("")}
+        </div>
+      </section>
+    </div>
   `;
 }
 
@@ -4814,13 +4870,14 @@ function setActivePage(pageId, shouldPush = true) {
   const normalizedPageId = normalizePageId(routeValue);
   let page = pages.find((item) => item.id === normalizedPageId) || pages[0];
   const ownerState = !isDeveloperDemoMode() ? stableState() : null;
-  if (
-    ownerState
-    && ownerState.ownerJourney?.onboardingStatus !== "completed"
-    && !["today", "settings"].includes(page.id)
-  ) {
+  const ownerJourneyRoute = ownerState ? requiredOwnerJourneyRoute(ownerState.ownerJourney) : "";
+  const journeyPages = ["signup", "welcome", "onboarding", "harvest-analysis"];
+  if (ownerJourneyRoute) {
+    page = pages.find((item) => item.id === ownerJourneyRoute) || page;
+  } else if (journeyPages.includes(page.id)) {
     page = pages[0];
   }
+  const routeWasRedirected = page.id !== normalizedPageId;
   let renderedPageId = page.id;
 
   syncOwnerBusinessCard((ownerState || stableState()).businessIntelligenceProfile);
@@ -4832,6 +4889,14 @@ function setActivePage(pageId, shouldPush = true) {
   try {
     if (page.id === "today") {
       renderTodayPage();
+    } else if (page.id === "signup" && !isDeveloperDemoMode()) {
+      renderSignUpPage();
+    } else if (page.id === "welcome" && !isDeveloperDemoMode()) {
+      renderWelcomePage();
+    } else if (page.id === "onboarding" && !isDeveloperDemoMode()) {
+      renderBusinessOnboardingPage(ownerState?.ownerJourney?.onboardingStep || 1);
+    } else if (page.id === "harvest-analysis" && !isDeveloperDemoMode()) {
+      renderHarvestAnalysisPage();
     } else if (page.id === "campaigns") {
       renderFocusedCampaignsPage();
     } else if (page.id === "customers") {
@@ -4866,8 +4931,8 @@ function setActivePage(pageId, shouldPush = true) {
   enhancePageActions();
 
   document.querySelectorAll(".nav-item").forEach((item) => {
-    if (ownerState && item.dataset.page && item.dataset.page !== "today") {
-      item.hidden = ownerState.ownerJourney?.onboardingStatus !== "completed";
+    if (ownerState && item.dataset.page) {
+      item.hidden = Boolean(ownerJourneyRoute);
     }
     const isActive = item.dataset.page === renderedPageId;
     item.classList.toggle("is-active", isActive);
@@ -4880,6 +4945,8 @@ function setActivePage(pageId, shouldPush = true) {
     if (routeContext.action) params.action = routeContext.action;
     if (routeContext.opportunityArea) params.area = routeContext.opportunityArea;
     history.pushState({ page: renderedPageId, ...routeContext }, "", routeFor(renderedPageId, params));
+  } else if (routeWasRedirected) {
+    history.replaceState({ page: renderedPageId }, "", routeFor(renderedPageId));
   }
 }
 
@@ -5329,19 +5396,19 @@ function handleDemoAction(action, button) {
       state.ownerJourney.onboardingStatus = "in_progress";
       state.ownerJourney.onboardingStep = 1;
       saveDemoState();
-      setActivePage("today", false);
+      setActivePage("onboarding");
       return;
     }
     if (action === "owner-onboarding-back") {
       state.ownerJourney.onboardingStep = 1;
       saveDemoState();
-      setActivePage("today", false);
+      setActivePage("onboarding", false);
       return;
     }
     if (action === "complete-analysis-review") {
       state.ownerJourney.analysisReviewed = true;
       saveDemoState();
-      setActivePage("today", false);
+      setActivePage("today");
       return;
     }
     if (action === "review-highest-opportunity") {
@@ -5393,10 +5460,40 @@ function handleDemoAction(action, button) {
         campaign_type: "owner_active_campaign",
         status: "active",
         approved_at: new Date().toISOString(),
+        execution: {
+          current_task_index: 0,
+          tasks: executionChecklistFromPlan(plan),
+        },
       };
       state.marketingPlan = null;
       saveDemoState();
       setActivePage("today");
+      return;
+    }
+    if (action === "open-campaign-execution") {
+      setActivePage("campaigns");
+      return;
+    }
+    if (action === "complete-current-campaign-task") {
+      const campaign = ensureActiveCampaignExecution(state.activeCampaign);
+      if (!campaign || campaign.status !== "active") {
+        setActivePage("campaigns");
+        return;
+      }
+      const tasks = campaign.execution.tasks;
+      const currentIndex = Number(campaign.execution.current_task_index || 0);
+      if (tasks[currentIndex]) tasks[currentIndex].status = "Completed";
+      const nextIndex = tasks.findIndex((task) => task.status !== "Completed");
+      if (nextIndex === -1) {
+        campaign.status = "completed";
+        campaign.completed_at = new Date().toISOString();
+        campaign.execution.current_task_index = tasks.length;
+      } else {
+        campaign.execution.current_task_index = nextIndex;
+      }
+      state.activeCampaign = campaign;
+      saveDemoState();
+      setActivePage("campaigns", false);
       return;
     }
     if (action === "return-to-today") {
@@ -8893,6 +8990,14 @@ function renderSignUpPage() {
   `;
 }
 
+function requiredOwnerJourneyRoute(journey = defaultOwnerJourney()) {
+  if (!journey.accountCreated) return "signup";
+  if (!journey.welcomeCompleted) return "welcome";
+  if (journey.onboardingStatus !== "completed") return "onboarding";
+  if (!journey.analysisReviewed) return "harvest-analysis";
+  return "";
+}
+
 function renderWelcomePage() {
   const ownerName = stableState().ownerJourney.account?.ownerName;
   contentStage.innerHTML = `
@@ -9054,6 +9159,36 @@ function prepareOwnerMarketingPlan(areaId, profile, bestNextMove = {}, source = 
     steps,
     prepared_at: new Date().toISOString(),
   };
+}
+
+function executionTaskDetails(title = "", index = 0) {
+  const text = String(title).toLowerCase();
+  if (/visual|photo|clip|record|film/.test(text)) return { explanation: "Prepare this asset clearly before moving forward.", estimated_time: "15 min" };
+  if (/caption|message|script|cta/.test(text)) return { explanation: "Review the wording and keep the customer action simple.", estimated_time: "10 min" };
+  if (/publish|post|display|send|ask/.test(text)) return { explanation: "Complete this customer-facing action using the approved plan.", estimated_time: "10 min" };
+  if (/reply|customer|community/.test(text)) return { explanation: "Handle customer responses clearly and promptly.", estimated_time: "10 min" };
+  return { explanation: "Complete this part of the approved marketing plan.", estimated_time: index === 0 ? "10 min" : "5 min" };
+}
+
+function executionChecklistFromPlan(plan = {}) {
+  return (Array.isArray(plan.steps) ? plan.steps : [])
+    .filter((step) => !/result|measure|track/i.test(String(step.title || "")))
+    .map((step, index) => ({
+      id: step.id || `execution-task-${index + 1}`,
+      title: step.title || `Task ${index + 1}`,
+      ...executionTaskDetails(step.title, index),
+      status: "Pending",
+    }));
+}
+
+function ensureActiveCampaignExecution(campaign) {
+  if (!campaign || !["active", "completed"].includes(campaign.status)) return campaign;
+  if (Array.isArray(campaign.execution?.tasks) && campaign.execution.tasks.length) return campaign;
+  campaign.execution = {
+    current_task_index: 0,
+    tasks: executionChecklistFromPlan(campaign),
+  };
+  return campaign;
 }
 
 function marketingAreaInsight(areaId, profile) {
@@ -9230,10 +9365,6 @@ function renderRealTodayPage() {
   const state = stableState();
   const profile = state.businessIntelligenceProfile;
   const journey = state.ownerJourney || defaultOwnerJourney();
-  if (!journey.accountCreated) { renderSignUpPage(); return; }
-  if (!journey.welcomeCompleted) { renderWelcomePage(); return; }
-  if (journey.onboardingStatus !== "completed") { renderBusinessOnboardingPage(journey.onboardingStep || 1); return; }
-  if (!journey.analysisReviewed) { renderHarvestAnalysisPage(); return; }
 
   const diagnosis = state.businessDiagnosis || {};
   const decision = state.bestNextMove || {};
@@ -9264,7 +9395,7 @@ function renderRealTodayPage() {
       </section>
       ${selectedArea ? `<section class="selected-marketing-area"><span>Selected Marketing Area</span><strong>You chose to work on ${studioEscape(selectedArea.title)}.</strong></section>` : ""}
       ${marketingPlan ? `<section class="marketing-plan-ready"><div><span>YOUR NEXT STEP</span><strong>Your Marketing Plan is ready.</strong><p>${studioEscape(marketingPlan.title)} has been prepared for review.</p></div><button type="button" data-demo-action="review-marketing-plan">Review plan</button></section>` : ""}
-      ${activeCampaign ? `<section class="active-campaign-confirmation"><span>ACTIVE CAMPAIGN</span><strong>Your marketing plan is now active.</strong><p>${studioEscape(activeCampaign.title)}</p></section>` : ""}
+      ${activeCampaign ? `<section class="active-campaign-confirmation"><span>ACTIVE CAMPAIGN</span><strong>Your marketing plan is now active.</strong><p>${studioEscape(activeCampaign.title)}</p><button type="button" data-demo-action="open-campaign-execution">Continue campaign</button></section>` : ""}
       <section class="loop-group">
         <div class="loop-group__heading"><span>Marketing Opportunities</span><strong>Other areas you can explore</strong></div>
         <p>These are business improvement areas, not recommendations. You decide what is worth exploring.</p>
@@ -9590,7 +9721,7 @@ function renderTodayPage() {
 
 function renderFocusedCampaignsPage() {
   if (!isDeveloperDemoMode()) {
-    renderRealEmptyPage("Campaigns", "No active marketing plan yet.", "Analyze your business first.");
+    renderRealCampaignExecutionPage();
     return;
   }
   const state = stableState();
