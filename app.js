@@ -64,7 +64,13 @@ let demoPanel;
 let demoBusinessStage = "active";
 let routeContext = {};
 
-const DEMO_STATE_KEY = "solo-pizzeria-demo-state";
+const LEGACY_STATE_KEY = "solo-pizzeria-demo-state";
+const REAL_STATE_KEY = "solo-real-business-state";
+const DEVELOPER_DEMO_STATE_KEY = "solo-developer-demo-state";
+
+function activeStateStorageKey() {
+  return isDeveloperDemoMode() ? DEVELOPER_DEMO_STATE_KEY : REAL_STATE_KEY;
+}
 
 function safeStorageGet(storage, key) {
   try {
@@ -123,7 +129,92 @@ function defaultStudioMission() {
   };
 }
 
+function emptyBusinessIntelligenceProfile() {
+  return {
+    version: "1.0",
+    updatedAt: "",
+    identity: {
+      businessName: "",
+      industry: "",
+      businessCategory: "",
+      city: "",
+      numberOfLocations: "",
+      yearsInBusiness: "",
+      numberOfEmployees: "",
+    },
+    goals: {
+      primaryGoal: "",
+      secondaryGoal: "",
+      currentBiggestChallenge: "",
+      successMetric: "",
+      desiredTimeHorizon: "",
+    },
+    products: {
+      bestSellingProducts: "",
+      highestMarginProducts: "",
+      productsNeedingPromotion: "",
+      seasonalProducts: "",
+      averageOrderValue: "",
+    },
+    customers: {
+      targetAudience: "",
+      customerSegments: "",
+      buyingMotivations: "",
+      peakDays: "",
+      peakHours: "",
+      returningCustomerPercentage: "",
+    },
+    marketing: {
+      instagram: "",
+      facebook: "",
+      tiktok: "",
+      whatsapp: "",
+      googleBusinessProfile: "",
+      website: "",
+      postingFrequency: "",
+      runningAds: "",
+      previousCampaigns: "",
+      currentContentTypes: "",
+    },
+    resources: {
+      monthlyMarketingBudget: "",
+      advertisingBudget: "",
+      availableTime: "",
+      canCreatePhotos: "",
+      canCreateVideos: "",
+      staffAvailable: "",
+      ownerPersonallyInvolved: "",
+    },
+    performance: {
+      revenueTrend: "",
+      weeklyCustomers: "",
+      averageOrderValue: "",
+      reviews: "",
+      averageRating: "",
+      bestPerformingDays: "",
+      weakestDays: "",
+    },
+    competition: {
+      mainCompetitors: "",
+      biggestCompetitiveAdvantage: "",
+      biggestWeaknessComparedToCompetitors: "",
+    },
+    context: {
+      opportunities: "",
+      constraints: "",
+      localEvents: "",
+    },
+    observations: {
+      consultantNotes: "",
+    },
+  };
+}
+
 function defaultBusinessIntelligenceProfile() {
+  return emptyBusinessIntelligenceProfile();
+}
+
+function demoBusinessIntelligenceProfile() {
   return {
     version: "1.0",
     updatedAt: "",
@@ -237,26 +328,11 @@ var SOLO_BRAIN_PHASE_ALIASES = {
 };
 
 function defaultDemoState() {
-  const defaultBrainOutputs = buildSoloBrainOutputs(defaultBusinessIntelligenceProfile());
+  const demoProfile = demoBusinessIntelligenceProfile();
+  const defaultBrainOutputs = buildSoloBrainOutputs(demoProfile);
   return {
-    businessProfile: {
-      businessName: "Solo Pizzeria Napoletana",
-      businessType: "Restaurant",
-      city: "Casablanca",
-      brandPositioning: "Premium Italian",
-      averageTicket: 140,
-      mainGoal: "More customers and stronger trust",
-      customerType: ["Families", "Professionals", "Young Adults"],
-      googleRating: 4.5,
-      numberOfReviews: 334,
-      instagramHandle: "@solopizzeria",
-      postingFrequency: 2,
-      whatsappAvailable: true,
-      biggestProblem: "Weak review acquisition",
-      busyDays: "weekends",
-      weekdayTraffic: "weak",
-      seasonality: ["Ramadan", "Summer", "Football Events"]
-    },
+    businessProfileMode: "demo",
+    businessProfile: legacyBusinessProfileFromIntelligence(demoProfile),
     todayStep: 0,
     studioView: "prepared",
     weeklyCompleted: 2,
@@ -289,7 +365,7 @@ function defaultDemoState() {
     completedCampaigns: [],
     studio: {},
     studioMission: defaultStudioMission(),
-    businessIntelligenceProfile: defaultBusinessIntelligenceProfile(),
+    businessIntelligenceProfile: demoProfile,
     businessDiagnosis: defaultBrainOutputs.businessDiagnosis,
     rankedEvidence: defaultBrainOutputs.rankedEvidence,
     bestNextMove: defaultBrainOutputs.bestNextMove,
@@ -299,6 +375,73 @@ function defaultDemoState() {
     learningMemory: defaultBrainOutputs.learningMemory,
     brainOrchestration: defaultBrainOutputs.orchestration,
     completedCalendarItems: []
+  };
+}
+
+function emptyStudioMission() {
+  return {
+    id: "",
+    created: false,
+    name: "",
+    linkedCampaign: "",
+    objective: "",
+    expectedOutcome: "",
+    platform: "",
+    requiredAssets: [],
+    status: "empty",
+    currentClip: 0,
+    published: false,
+    activeCampaignId: "",
+    clipOrder: [0, 1, 2, 3, 4],
+    clips: Array.from({ length: 5 }, () => ({ status: "pending", attempts: 0 })),
+    package: {
+      hook: "",
+      caption: "",
+      hashtags: "",
+      cta: "",
+      postingTime: "",
+      musicStyle: "",
+      thumbnail: "",
+    },
+  };
+}
+
+function defaultRealState() {
+  const profile = emptyBusinessIntelligenceProfile();
+  const brainOutputs = buildSoloBrainOutputs(profile);
+  return {
+    businessProfileMode: "real",
+    businessProfile: legacyBusinessProfileFromIntelligence(profile),
+    todayStep: 0,
+    studioView: "empty",
+    weeklyCompleted: 0,
+    reviews: "",
+    customers: "",
+    revenue: "",
+    momentum: "",
+    returningCustomersThisMonth: "",
+    whatsappCommunityMembers: "",
+    lastContentPublishedAt: "",
+    harvestRecalculating: false,
+    recentWins: [],
+    recentActivity: [],
+    campaigns: {},
+    results: [],
+    learning_events: [],
+    completedPlanSteps: {},
+    completedCampaigns: [],
+    studio: {},
+    studioMission: emptyStudioMission(),
+    businessIntelligenceProfile: profile,
+    businessDiagnosis: brainOutputs.businessDiagnosis,
+    rankedEvidence: brainOutputs.rankedEvidence,
+    bestNextMove: brainOutputs.bestNextMove,
+    campaignPackage: brainOutputs.campaignPackage,
+    executionPlan: brainOutputs.executionPlan,
+    performanceReport: brainOutputs.performanceReport,
+    learningMemory: brainOutputs.learningMemory,
+    brainOrchestration: brainOutputs.orchestration,
+    completedCalendarItems: [],
   };
 }
 
@@ -312,19 +455,104 @@ function deepMergeProfile(defaults, saved) {
   }));
 }
 
+function legacyBusinessProfileFromIntelligence(profile = emptyBusinessIntelligenceProfile()) {
+  const targetCustomer = String(profile.customers?.targetAudience || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return {
+    businessName: profile.identity?.businessName || "",
+    businessType: profile.identity?.industry || profile.identity?.businessCategory || "",
+    city: profile.identity?.city || "",
+    brandPositioning: profile.identity?.businessCategory || "",
+    averageTicket: profile.products?.averageOrderValue || profile.performance?.averageOrderValue || "",
+    mainGoal: profile.goals?.primaryGoal || "",
+    customerType: targetCustomer,
+    googleRating: profile.performance?.averageRating || "",
+    numberOfReviews: profile.performance?.reviews || "",
+    instagramHandle: profile.marketing?.instagram || "",
+    postingFrequency: profile.marketing?.postingFrequency || "",
+    whatsappAvailable: /available|yes/i.test(String(profile.marketing?.whatsapp || "")),
+    biggestProblem: profile.goals?.currentBiggestChallenge || "",
+    busyDays: profile.customers?.peakDays || "",
+    weekdayTraffic: profile.performance?.weakestDays || "",
+    seasonality: String(profile.products?.seasonalProducts || profile.context?.opportunities || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+  };
+}
+
+function businessIntelligenceProfileFromLegacy(profile = {}) {
+  const migrated = emptyBusinessIntelligenceProfile();
+  migrated.identity.businessName = profile.businessName || "";
+  migrated.identity.industry = profile.businessType || "";
+  migrated.identity.businessCategory = profile.brandPositioning || "";
+  migrated.identity.city = profile.city || "";
+  migrated.goals.primaryGoal = profile.mainGoal || "";
+  migrated.goals.currentBiggestChallenge = profile.biggestProblem || "";
+  migrated.products.averageOrderValue = profile.averageTicket ?? "";
+  migrated.customers.targetAudience = Array.isArray(profile.customerType)
+    ? profile.customerType.join(", ")
+    : profile.customerType || "";
+  migrated.customers.peakDays = profile.busyDays || "";
+  migrated.marketing.instagram = profile.instagramHandle || "";
+  migrated.marketing.postingFrequency = profile.postingFrequency || "";
+  migrated.marketing.whatsapp = profile.whatsappAvailable === true
+    ? "Available"
+    : profile.whatsappAvailable === false
+      ? "Not Available"
+      : "";
+  migrated.performance.averageOrderValue = profile.averageTicket ?? "";
+  migrated.performance.reviews = profile.numberOfReviews ?? "";
+  migrated.performance.averageRating = profile.googleRating ?? "";
+  migrated.performance.weakestDays = profile.weekdayTraffic || "";
+  migrated.context.opportunities = Array.isArray(profile.seasonality)
+    ? profile.seasonality.join(", ")
+    : profile.seasonality || "";
+  return migrated;
+}
+
+function inferBusinessProfileMode(savedState = {}) {
+  if (savedState.businessProfileMode === "real" || savedState.businessProfileMode === "demo") {
+    return savedState.businessProfileMode;
+  }
+  const savedName = savedState.businessIntelligenceProfile?.identity?.businessName
+    || savedState.businessProfile?.businessName
+    || "";
+  return !savedName || savedName === demoBusinessIntelligenceProfile().identity.businessName ? "demo" : "real";
+}
+
 let demoState = loadDemoState();
 
 function loadDemoState() {
-  const defaults = defaultDemoState();
+  const developerMode = isDeveloperDemoMode();
+  const defaults = developerMode ? defaultDemoState() : defaultRealState();
   try {
-    const saved = safeStorageGet(localStorage, DEMO_STATE_KEY);
+    let saved = safeStorageGet(localStorage, activeStateStorageKey());
+    if (!saved) {
+      const legacySaved = safeStorageGet(localStorage, LEGACY_STATE_KEY);
+      if (legacySaved) {
+        const legacyParsed = JSON.parse(legacySaved);
+        const legacyMode = inferBusinessProfileMode(legacyParsed);
+        if ((developerMode && legacyMode === "demo") || (!developerMode && legacyMode === "real")) {
+          saved = legacySaved;
+        }
+      }
+    }
     if (!saved) return defaults;
     const parsed = JSON.parse(saved);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      safeStorageRemove(localStorage, DEMO_STATE_KEY);
+      safeStorageRemove(localStorage, activeStateStorageKey());
       return defaults;
     }
-    const mergedBusinessIntelligenceProfile = deepMergeProfile(defaults.businessIntelligenceProfile, parsed.businessIntelligenceProfile);
+    const businessProfileMode = developerMode ? "demo" : "real";
+    const profileDefaults = businessProfileMode === "demo"
+      ? demoBusinessIntelligenceProfile()
+      : emptyBusinessIntelligenceProfile();
+    const migratedProfileSource = parsed.businessIntelligenceProfile
+      || businessIntelligenceProfileFromLegacy(parsed.businessProfile || {});
+    const mergedBusinessIntelligenceProfile = deepMergeProfile(profileDefaults, migratedProfileSource);
     const mergedBusinessDiagnosis = parsed.businessDiagnosis && typeof parsed.businessDiagnosis === "object"
       ? parsed.businessDiagnosis
       : runBusinessUnderstandingEngine(mergedBusinessIntelligenceProfile);
@@ -337,7 +565,8 @@ function loadDemoState() {
     return {
       ...defaults,
       ...parsed,
-      businessProfile: { ...defaults.businessProfile, ...(parsed.businessProfile || {}) },
+      businessProfileMode,
+      businessProfile: legacyBusinessProfileFromIntelligence(mergedBusinessIntelligenceProfile),
       campaigns: { ...defaults.campaigns, ...(parsed.campaigns || {}) },
       completedPlanSteps: { ...defaults.completedPlanSteps, ...(parsed.completedPlanSteps || {}) },
       businessIntelligenceProfile: mergedBusinessIntelligenceProfile,
@@ -408,13 +637,16 @@ function loadDemoState() {
       },
     };
   } catch (error) {
-    safeStorageRemove(localStorage, DEMO_STATE_KEY);
+    safeStorageRemove(localStorage, activeStateStorageKey());
     return defaults;
   }
 }
 
 function saveDemoState() {
-  safeStorageSet(localStorage, DEMO_STATE_KEY, JSON.stringify(demoState));
+  safeStorageSet(localStorage, activeStateStorageKey(), JSON.stringify(demoState, (key, value) => {
+    if (key === "businessProfile") return undefined;
+    return value;
+  }));
 }
 
 function updateDemoState(updater, message = "Progress updated") {
@@ -425,11 +657,12 @@ function updateDemoState(updater, message = "Progress updated") {
 }
 
 function resetDemoState() {
-  demoState = defaultDemoState();
-  safeStorageRemove(localStorage, DEMO_STATE_KEY);
+  const developerMode = isDeveloperDemoMode();
+  demoState = developerMode ? defaultDemoState() : defaultRealState();
+  safeStorageRemove(localStorage, activeStateStorageKey());
   saveDemoState();
   closeDemoModal();
-  showDemoPanel("Demo reset", "Solo Pizzeria demo state restored.");
+  showDemoPanel(developerMode ? "Demo reset" : "Business reset", developerMode ? "Solo Pizzeria demo state restored." : "Business profile cleared.");
   setActivePage(document.body.dataset.page || "today", false);
 }
 
@@ -815,6 +1048,7 @@ function saveBusinessIntelligenceInput(control) {
   const value = control.type === "number" && rawValue !== "" ? Number(rawValue) : rawValue;
   const numericValue = Number(value);
   const hasNumericValue = rawValue !== "" && Number.isFinite(numericValue);
+
   setNestedValue(state.businessIntelligenceProfile, field, value);
   state.businessIntelligenceProfile.updatedAt = new Date().toISOString();
   const brainRun = runSoloBrainOrchestrator({
@@ -832,20 +1066,12 @@ function saveBusinessIntelligenceInput(control) {
   state.learningMemory = brainRun.learningMemory;
   state.brainOrchestration = brainRun.orchestration;
 
-  if (field === "identity.businessName") state.businessProfile.businessName = value || state.businessProfile.businessName;
-  if (field === "identity.businessCategory") state.businessProfile.brandPositioning = value || state.businessProfile.brandPositioning;
-  if (field === "identity.city") state.businessProfile.city = value || state.businessProfile.city;
-  if ((field === "products.averageOrderValue" || field === "performance.averageOrderValue") && hasNumericValue) {
-    state.businessProfile.averageTicket = numericValue;
-  }
   if (field === "performance.reviews") {
     if (hasNumericValue) {
       state.reviews = numericValue;
-      state.businessProfile.numberOfReviews = numericValue;
     }
   }
-  if (field === "performance.averageRating" && hasNumericValue) state.businessProfile.googleRating = numericValue;
-  if (field === "marketing.instagram") state.businessProfile.instagramHandle = value || state.businessProfile.instagramHandle;
+  state.businessProfile = legacyBusinessProfileFromIntelligence(state.businessIntelligenceProfile);
 
   saveDemoState();
   const memoryOutput = document.querySelector("[data-bi-memory-output]");
@@ -4453,6 +4679,8 @@ function setActivePage(pageId, shouldPush = true) {
   const page = pages.find((item) => item.id === normalizedPageId) || pages[0];
   let renderedPageId = page.id;
 
+  syncOwnerBusinessCard(stableState().businessIntelligenceProfile);
+
   document.title = `SOLO · ${page.label}`;
   pageTitle.textContent = page.label;
   document.body.dataset.page = page.id;
@@ -4573,18 +4801,26 @@ function renderNavigation() {
 
 /* Stable demo layer: simple interactions only */
 function stableState() {
-  const defaults = defaultDemoState();
+  const developerMode = isDeveloperDemoMode();
+  const defaults = developerMode ? defaultDemoState() : defaultRealState();
+  const businessProfileMode = developerMode ? "demo" : "real";
+  const profileDefaults = businessProfileMode === "demo"
+    ? demoBusinessIntelligenceProfile()
+    : emptyBusinessIntelligenceProfile();
+  defaults.businessIntelligenceProfile = profileDefaults;
+  const authoritativeBusinessProfile = deepMergeProfile(profileDefaults, demoState?.businessIntelligenceProfile);
   const savedMission = demoState?.studioMission && typeof demoState.studioMission === "object"
     ? demoState.studioMission
     : {};
   demoState = {
     ...defaults,
     ...(demoState && typeof demoState === "object" ? demoState : {}),
-    businessProfile: { ...defaults.businessProfile, ...((demoState && demoState.businessProfile) || {}) },
+    businessProfileMode,
+    businessProfile: legacyBusinessProfileFromIntelligence(authoritativeBusinessProfile),
     recentWins: Array.isArray(demoState?.recentWins) ? demoState.recentWins : defaults.recentWins,
     recentActivity: Array.isArray(demoState?.recentActivity) ? demoState.recentActivity : defaults.recentActivity,
     results: Array.isArray(demoState?.results) ? demoState.results : defaults.results,
-    businessIntelligenceProfile: deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile),
+    businessIntelligenceProfile: authoritativeBusinessProfile,
     businessDiagnosis: demoState?.businessDiagnosis && typeof demoState.businessDiagnosis === "object"
       ? demoState.businessDiagnosis
       : runBusinessUnderstandingEngine(deepMergeProfile(defaults.businessIntelligenceProfile, demoState?.businessIntelligenceProfile)),
@@ -4927,6 +5163,17 @@ function handleDemoAction(action, button) {
 
   if (action === "close-modal" || action === "close-modal-backdrop") {
     closeDemoModal();
+    return;
+  }
+
+  if (!isDeveloperDemoMode()) {
+    if (action === "open-settings") {
+      setActivePage("settings");
+      return;
+    }
+    if (action === "search") {
+      showDemoPanel("Search", "Search is not available yet.");
+    }
     return;
   }
 
@@ -6742,11 +6989,7 @@ function buildSoloBrainOutputs(profile = defaultBusinessIntelligenceProfile()) {
 
 function isDeveloperDemoMode() {
   const search = new URLSearchParams(window.location?.search || "");
-  const hostname = window.location?.hostname || "";
-  return window.location?.protocol === "file:"
-    || hostname === "localhost"
-    || hostname === "127.0.0.1"
-    || search.has("dev")
+  return search.get("dev") === "1"
     || search.get("solo_dev") === "1"
     || safeStorageGet(localStorage, "solo-dev-mode") === "1";
 }
@@ -8344,6 +8587,129 @@ function growthAreaDefinitions() {
   };
 }
 
+function ownerProfileValue(value) {
+  return biKnown(value) ? studioEscape(value) : "Not provided yet";
+}
+
+function syncOwnerBusinessCard(profile = emptyBusinessIntelligenceProfile()) {
+  const card = document.querySelector(".business-card");
+  if (!card) return;
+  const name = card.querySelector(".business-copy span");
+  const context = card.querySelector(".business-copy small");
+  const pulse = card.querySelector(".business-card__metric strong");
+  const reset = card.querySelector("[data-demo-action='reset-demo']");
+  if (name) name.textContent = profile.identity?.businessName || "Business profile";
+  if (context) {
+    const details = [profile.identity?.businessCategory || profile.identity?.industry, profile.identity?.city].filter(biKnown);
+    context.textContent = details.length ? details.join(" · ") : "Not provided yet";
+  }
+  if (pulse) pulse.textContent = isDeveloperDemoMode() ? "Demo active" : "Profile active";
+  if (reset) reset.hidden = !isDeveloperDemoMode();
+}
+
+function renderRealEmptyPage(label, title, message) {
+  const profile = stableState().businessIntelligenceProfile;
+  contentStage.innerHTML = `
+    <div class="growth-os-page">
+      <header class="growth-os-header">
+        <p class="section-label">${studioEscape(label)}</p>
+        <h2>${studioEscape(title)}</h2>
+        <p>${studioEscape(message)}</p>
+      </header>
+      <section class="guided-empty-state">
+        <strong>${ownerProfileValue(profile.identity?.businessName)}</strong>
+        <p>${studioEscape(message)}</p>
+      </section>
+    </div>
+  `;
+}
+
+function renderRealTodayPage() {
+  const state = stableState();
+  const profile = state.businessIntelligenceProfile;
+  const name = profile.identity?.businessName;
+  const facts = [
+    ["Business type", profile.identity?.businessCategory || profile.identity?.industry],
+    ["City", profile.identity?.city],
+    ["Primary goal", profile.goals?.primaryGoal],
+    ["Average spend", biKnown(profile.products?.averageOrderValue || profile.performance?.averageOrderValue)
+      ? `${Number(profile.products?.averageOrderValue || profile.performance?.averageOrderValue).toLocaleString()} MAD`
+      : ""],
+    ["Reviews", profile.performance?.reviews],
+    ["Rating", profile.performance?.averageRating],
+  ];
+  pageTitle.textContent = "SOLO · Today";
+  contentStage.innerHTML = `
+    <div class="solo-home-page">
+      <header class="solo-home-heading">
+        <p>${name ? "Business overview" : "Welcome to SOLO"}</p>
+        <h2>${name ? studioEscape(name) : "Complete your business profile."}</h2>
+      </header>
+      <section class="home-kpi-bar" aria-label="Business profile summary">
+        ${facts.map(([label, value]) => `
+          <article class="home-kpi">
+            <span>${studioEscape(label)}</span>
+            <strong>${ownerProfileValue(value)}</strong>
+          </article>
+        `).join("")}
+      </section>
+      <section class="guided-empty-state">
+        <strong>${name ? "Your business profile is active." : "Business information is needed."}</strong>
+        <p>${name
+          ? "SOLO is using only the information saved in this business profile. A professional recommendation will appear after the decision experience is stabilized."
+          : "Open Settings and add what you know. Information you do not provide will remain unknown."}</p>
+        ${name ? "" : `<button type="button" data-demo-action="open-settings">Open Settings</button>`}
+      </section>
+    </div>
+  `;
+}
+
+function renderRealResultsPage() {
+  const state = stableState();
+  const results = Array.isArray(state.results) ? state.results : [];
+  if (!results.length) {
+    renderRealEmptyPage("Results", "No results recorded yet.", "Results will appear here after a real marketing action is measured.");
+    return;
+  }
+  const totals = performanceResultsFromInput({ results }).totals;
+  contentStage.innerHTML = `
+    <div class="growth-os-page results-os-page">
+      <header class="growth-os-header">
+        <p class="section-label">Results</p>
+        <h2>Recorded business movement.</h2>
+        <p>Only manually saved results are shown here.</p>
+      </header>
+      <section class="result-summary-line">
+        ${operatingMetric("Revenue influenced", `${totals.revenue.toLocaleString()} MAD`, "Recorded results")}
+        ${operatingMetric("Customers", totals.customers.toLocaleString(), "Recorded results")}
+        ${operatingMetric("Reviews", totals.reviews.toLocaleString(), "Recorded results")}
+        ${operatingMetric("Reservations", totals.reservations.toLocaleString(), "Recorded results")}
+      </section>
+    </div>
+  `;
+}
+
+function renderRealCustomersPage() {
+  const state = stableState();
+  const profile = state.businessIntelligenceProfile;
+  const results = performanceResultsFromInput({ results: state.results || [] }).totals;
+  contentStage.innerHTML = `
+    <div class="growth-os-page customers-os-page">
+      <header class="growth-os-header">
+        <p class="section-label">Customers</p>
+        <h2>Customer information.</h2>
+        <p>Only saved profile information and recorded results are shown.</p>
+      </header>
+      <section class="relationship-system">
+        <div class="relationship-row"><span>Target audience</span><strong>${ownerProfileValue(profile.customers?.targetAudience)}</strong></div>
+        <div class="relationship-row"><span>Recorded customers</span><strong>${results.customers || "Not provided yet"}</strong></div>
+        <div class="relationship-row"><span>Reviews</span><strong>${ownerProfileValue(profile.performance?.reviews)}</strong></div>
+        <div class="relationship-row"><span>Returning customers</span><strong>${results.repeat_customers || "Not provided yet"}</strong></div>
+      </section>
+    </div>
+  `;
+}
+
 function openGrowthAreaFlow(areaId, stage = "recommendation") {
   const area = growthAreaDefinitions()[areaId] || growthAreaDefinitions().customers;
   if (stage === "plan") {
@@ -8388,6 +8754,10 @@ function openGrowthAreaFlow(areaId, stage = "recommendation") {
 }
 
 function renderTodayPage() {
+  if (!isDeveloperDemoMode()) {
+    renderRealTodayPage();
+    return;
+  }
   const state = stableState();
   const health = calculateBusinessHealth(state);
   const recommendation = homeRecommendation(state);
@@ -8607,6 +8977,10 @@ function renderTodayPage() {
 }
 
 function renderFocusedCampaignsPage() {
+  if (!isDeveloperDemoMode()) {
+    renderRealEmptyPage("Campaigns", "No active marketing plan yet.", "Analyze your business first.");
+    return;
+  }
   const state = stableState();
   const reviewsGained = Math.max(Number(state.reviews || 334) - 317, 17);
   const progress = Math.min((reviewsGained / 166) * 100, 100);
@@ -8688,6 +9062,10 @@ function renderFocusedCampaignsPage() {
 }
 
 function renderFocusedCustomersPage() {
+  if (!isDeveloperDemoMode()) {
+    renderRealCustomersPage();
+    return;
+  }
   const state = stableState();
   contentStage.innerHTML = `
     <div class="growth-os-page customers-os-page">
@@ -8717,6 +9095,10 @@ function renderFocusedCustomersPage() {
 }
 
 function renderFocusedStudioPage() {
+  if (!isDeveloperDemoMode()) {
+    renderRealEmptyPage("Studio", "No prepared materials yet.", "Your prepared execution materials will appear here after you approve a plan.");
+    return;
+  }
   const state = stableState();
   const activeCampaignId = routeContext.campaignId || state.studioMission.activeCampaignId || "signature-reel-series";
   if (activeCampaignId && state.studioMission.activeCampaignId !== activeCampaignId) {
@@ -8899,6 +9281,10 @@ function renderFocusedStudioPage() {
 }
 
 function renderFocusedResultsPage() {
+  if (!isDeveloperDemoMode()) {
+    renderRealResultsPage();
+    return;
+  }
   const state = stableState();
   const highlightedCampaignId = routeContext.campaignId || state.studioMission.activeCampaignId || "";
   const savedResults = state.results.slice(-4).reverse();
@@ -9000,7 +9386,7 @@ function renderFocusedSettingsPage() {
       ])}
 
       ${biSection("2. Business Goals", "Recommendations will optimize for the owner's main objective.", [
-        biControl("Primary Goal", biSelect("goals.primaryGoal", ["More Orders", "More Reservations", "More Leads", "More Revenue", "More Repeat Customers", "More Reviews", "More Brand Awareness"])),
+        biControl("Primary Goal", biSelect("goals.primaryGoal", ["More Orders", "More Reservations", "More Leads", "More Revenue", "More Repeat Customers", "More Reviews", "More Brand Awareness", "Increase weekday customers"])),
         biControl("Secondary Goal", biSelect("goals.secondaryGoal", ["More Orders", "More Reservations", "More Leads", "More Revenue", "More Repeat Customers", "More Reviews", "More Brand Awareness"])),
         biControl("Current Biggest Challenge", biField("goals.currentBiggestChallenge", "Ex: Few weekday customers")),
         biControl("Success Metric", biField("goals.successMetric", "Ex: 500 Google reviews")),
@@ -9085,6 +9471,10 @@ function renderFocusedSettingsPage() {
 }
 
 function renderFocusedCalendarPage() {
+  if (!isDeveloperDemoMode()) {
+    renderRealEmptyPage("Calendar", "No marketing schedule yet.", "Approved marketing plans will appear here when they have a schedule.");
+    return;
+  }
   const state = stableState();
   contentStage.innerHTML = `
     <div class="growth-os-page calendar-os-page">
@@ -9133,4 +9523,3 @@ setActivePage(location.hash || location.pathname.split("/").pop() || "today", fa
 window.addEventListener("popstate", () => {
   setActivePage(location.hash || location.pathname.split("/").pop() || "today", false);
 });
-
