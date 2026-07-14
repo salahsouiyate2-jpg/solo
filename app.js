@@ -55,6 +55,21 @@
     heading: "Settings",
     description: "Business profile and demo controls.",
   },
+  {
+    id: "highest-opportunity",
+    label: "Highest Opportunity",
+    heading: "Highest Opportunity",
+  },
+  {
+    id: "marketing-opportunity",
+    label: "Marketing Opportunity",
+    heading: "Marketing Opportunity",
+  },
+  {
+    id: "marketing-plan",
+    label: "Marketing Plan",
+    heading: "Marketing Plan",
+  },
 ];
 
 const navList = document.querySelector("#nav-list");
@@ -406,11 +421,26 @@ function emptyStudioMission() {
   };
 }
 
+function defaultOwnerJourney() {
+  return {
+    accountCreated: false,
+    account: { ownerName: "", email: "", preferredLanguage: "English" },
+    welcomeCompleted: false,
+    onboardingStatus: "not_started",
+    onboardingStep: 1,
+    analysisCompleted: false,
+    analysisReviewed: false,
+    acknowledgedHighestOpportunity: false,
+    selectedMarketingArea: "",
+  };
+}
+
 function defaultRealState() {
   const profile = emptyBusinessIntelligenceProfile();
   const brainOutputs = buildSoloBrainOutputs(profile);
   return {
     businessProfileMode: "real",
+    ownerJourney: defaultOwnerJourney(),
     businessProfile: legacyBusinessProfileFromIntelligence(profile),
     todayStep: 0,
     studioView: "empty",
@@ -426,6 +456,8 @@ function defaultRealState() {
     recentWins: [],
     recentActivity: [],
     campaigns: {},
+    marketingPlan: null,
+    activeCampaign: null,
     results: [],
     learning_events: [],
     completedPlanSteps: {},
@@ -523,6 +555,35 @@ function inferBusinessProfileMode(savedState = {}) {
   return !savedName || savedName === demoBusinessIntelligenceProfile().identity.businessName ? "demo" : "real";
 }
 
+function migrateOwnerJourney(savedJourney, profile) {
+  const defaults = defaultOwnerJourney();
+  if (savedJourney && typeof savedJourney === "object") {
+    const selectedMarketingArea = savedJourney.selectedMarketingArea || savedJourney.selectedMarketingOpportunity || "";
+    return {
+      ...defaults,
+      ...savedJourney,
+      selectedMarketingArea,
+      account: { ...defaults.account, ...(savedJourney.account || {}) },
+    };
+  }
+  const hasExistingBusiness = biKnown(profile.identity?.businessName);
+  const hasRequiredProfile = hasExistingBusiness
+    && biKnown(profile.identity?.businessCategory || profile.identity?.industry)
+    && biKnown(profile.identity?.city)
+    && biKnown(profile.goals?.primaryGoal)
+    && biKnown(profile.customers?.targetAudience);
+  if (!hasExistingBusiness) return defaults;
+  return {
+    ...defaults,
+    accountCreated: true,
+    welcomeCompleted: true,
+    onboardingStatus: hasRequiredProfile ? "completed" : "in_progress",
+    onboardingStep: hasRequiredProfile ? 2 : 1,
+    analysisCompleted: hasRequiredProfile,
+    analysisReviewed: false,
+  };
+}
+
 let demoState = loadDemoState();
 
 function loadDemoState() {
@@ -566,6 +627,7 @@ function loadDemoState() {
       ...defaults,
       ...parsed,
       businessProfileMode,
+      ownerJourney: developerMode ? parsed.ownerJourney : migrateOwnerJourney(parsed.ownerJourney, mergedBusinessIntelligenceProfile),
       businessProfile: legacyBusinessProfileFromIntelligence(mergedBusinessIntelligenceProfile),
       campaigns: { ...defaults.campaigns, ...(parsed.campaigns || {}) },
       completedPlanSteps: { ...defaults.completedPlanSteps, ...(parsed.completedPlanSteps || {}) },
@@ -894,6 +956,7 @@ function readRouteContext(route = "") {
   return {
     campaignId: params.get("campaign_id") || params.get("id") || "",
     action: params.get("action") || "",
+    opportunityArea: params.get("area") || "",
   };
 }
 
@@ -1097,6 +1160,79 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("submit", (event) => {
+  const ownerForm = event.target.closest("[data-owner-form]");
+  if (ownerForm && !isDeveloperDemoMode()) {
+    event.preventDefault();
+    const data = new FormData(ownerForm);
+    const state = stableState();
+    const journey = state.ownerJourney;
+
+    if (ownerForm.dataset.ownerForm === "signup") {
+      journey.account = {
+        ownerName: String(data.get("ownerName") || "").trim(),
+        email: String(data.get("email") || "").trim(),
+        preferredLanguage: String(data.get("preferredLanguage") || "English"),
+      };
+      journey.accountCreated = true;
+      saveDemoState();
+      setActivePage("today", false);
+      return;
+    }
+
+    if (ownerForm.dataset.ownerForm === "onboarding-basics") {
+      const businessType = String(data.get("businessType") || "").trim();
+      state.businessIntelligenceProfile.identity.businessName = String(data.get("businessName") || "").trim();
+      state.businessIntelligenceProfile.identity.businessCategory = businessType;
+      state.businessIntelligenceProfile.identity.industry = businessType;
+      state.businessIntelligenceProfile.identity.city = String(data.get("city") || "").trim();
+      const averageOrderValue = String(data.get("averageOrderValue") || "").trim();
+      state.businessIntelligenceProfile.products.averageOrderValue = averageOrderValue ? Number(averageOrderValue) : "";
+      state.businessIntelligenceProfile.updatedAt = new Date().toISOString();
+      journey.onboardingStatus = "in_progress";
+      journey.onboardingStep = 2;
+      state.businessProfile = legacyBusinessProfileFromIntelligence(state.businessIntelligenceProfile);
+      saveDemoState();
+      setActivePage("today", false);
+      return;
+    }
+
+    if (ownerForm.dataset.ownerForm === "onboarding-context") {
+      const profile = state.businessIntelligenceProfile;
+      profile.goals.primaryGoal = String(data.get("primaryGoal") || "").trim();
+      profile.customers.targetAudience = String(data.get("targetAudience") || "").trim();
+      profile.resources.availableTime = String(data.get("availableTime") || "").trim();
+      const platform = String(data.get("primaryPlatform") || "").trim();
+      profile.marketing.instagram = /instagram/i.test(platform) ? "Instagram" : "";
+      profile.marketing.facebook = /facebook/i.test(platform) ? "Facebook" : "";
+      profile.marketing.tiktok = /tiktok/i.test(platform) ? "TikTok" : "";
+      profile.marketing.whatsapp = /whatsapp/i.test(platform) ? "Available" : "";
+      profile.marketing.googleBusinessProfile = /google/i.test(platform) ? "Active" : "";
+      const reviews = String(data.get("reviews") || "").trim();
+      const rating = String(data.get("averageRating") || "").trim();
+      profile.performance.reviews = reviews ? Number(reviews) : "";
+      profile.performance.averageRating = rating ? Number(rating) : "";
+      profile.updatedAt = new Date().toISOString();
+
+      const brainRun = runSoloBrainOrchestrator({
+        businessIntelligenceProfile: profile,
+        targetPhase: "decision",
+      });
+      state.businessDiagnosis = brainRun.businessDiagnosis;
+      state.rankedEvidence = brainRun.rankedEvidence;
+      state.bestNextMove = brainRun.bestNextMove;
+      state.brainOrchestration = brainRun.orchestration;
+      state.businessProfile = legacyBusinessProfileFromIntelligence(profile);
+      state.reviews = profile.performance.reviews;
+      journey.onboardingStatus = "completed";
+      journey.onboardingStep = 2;
+      journey.analysisCompleted = true;
+      journey.analysisReviewed = false;
+      saveDemoState();
+      setActivePage("today", false);
+      return;
+    }
+  }
+
   const studioForm = event.target.closest("[data-demo-form='studio-assets']");
   if (studioForm) {
     event.preventDefault();
@@ -4676,10 +4812,18 @@ function setActivePage(pageId, shouldPush = true) {
   const routeValue = String(pageId || "");
   routeContext = readRouteContext(routeValue);
   const normalizedPageId = normalizePageId(routeValue);
-  const page = pages.find((item) => item.id === normalizedPageId) || pages[0];
+  let page = pages.find((item) => item.id === normalizedPageId) || pages[0];
+  const ownerState = !isDeveloperDemoMode() ? stableState() : null;
+  if (
+    ownerState
+    && ownerState.ownerJourney?.onboardingStatus !== "completed"
+    && !["today", "settings"].includes(page.id)
+  ) {
+    page = pages[0];
+  }
   let renderedPageId = page.id;
 
-  syncOwnerBusinessCard(stableState().businessIntelligenceProfile);
+  syncOwnerBusinessCard((ownerState || stableState()).businessIntelligenceProfile);
 
   document.title = `SOLO · ${page.label}`;
   pageTitle.textContent = page.label;
@@ -4700,6 +4844,12 @@ function setActivePage(pageId, shouldPush = true) {
       renderFocusedCalendarPage();
     } else if (page.id === "settings") {
       renderFocusedSettingsPage();
+    } else if (page.id === "highest-opportunity" && !isDeveloperDemoMode()) {
+      renderHighestOpportunityPage();
+    } else if (page.id === "marketing-opportunity" && !isDeveloperDemoMode()) {
+      renderMarketingOpportunityPage(routeContext.opportunityArea || stableState().ownerJourney?.selectedMarketingArea);
+    } else if (page.id === "marketing-plan" && !isDeveloperDemoMode()) {
+      renderMarketingPlanReviewPage();
     } else {
       renderPlaceholderPage(page);
     }
@@ -4716,6 +4866,9 @@ function setActivePage(pageId, shouldPush = true) {
   enhancePageActions();
 
   document.querySelectorAll(".nav-item").forEach((item) => {
+    if (ownerState && item.dataset.page && item.dataset.page !== "today") {
+      item.hidden = ownerState.ownerJourney?.onboardingStatus !== "completed";
+    }
     const isActive = item.dataset.page === renderedPageId;
     item.classList.toggle("is-active", isActive);
     item.setAttribute("aria-current", isActive ? "page" : "false");
@@ -4725,6 +4878,7 @@ function setActivePage(pageId, shouldPush = true) {
     const params = {};
     if (routeContext.campaignId) params.campaign_id = routeContext.campaignId;
     if (routeContext.action) params.action = routeContext.action;
+    if (routeContext.opportunityArea) params.area = routeContext.opportunityArea;
     history.pushState({ page: renderedPageId, ...routeContext }, "", routeFor(renderedPageId, params));
   }
 }
@@ -4816,6 +4970,9 @@ function stableState() {
     ...defaults,
     ...(demoState && typeof demoState === "object" ? demoState : {}),
     businessProfileMode,
+    ownerJourney: developerMode
+      ? demoState?.ownerJourney
+      : migrateOwnerJourney(demoState?.ownerJourney, authoritativeBusinessProfile),
     businessProfile: legacyBusinessProfileFromIntelligence(authoritativeBusinessProfile),
     recentWins: Array.isArray(demoState?.recentWins) ? demoState.recentWins : defaults.recentWins,
     recentActivity: Array.isArray(demoState?.recentActivity) ? demoState.recentActivity : defaults.recentActivity,
@@ -5167,6 +5324,85 @@ function handleDemoAction(action, button) {
   }
 
   if (!isDeveloperDemoMode()) {
+    if (action === "begin-owner-onboarding") {
+      state.ownerJourney.welcomeCompleted = true;
+      state.ownerJourney.onboardingStatus = "in_progress";
+      state.ownerJourney.onboardingStep = 1;
+      saveDemoState();
+      setActivePage("today", false);
+      return;
+    }
+    if (action === "owner-onboarding-back") {
+      state.ownerJourney.onboardingStep = 1;
+      saveDemoState();
+      setActivePage("today", false);
+      return;
+    }
+    if (action === "complete-analysis-review") {
+      state.ownerJourney.analysisReviewed = true;
+      saveDemoState();
+      setActivePage("today", false);
+      return;
+    }
+    if (action === "review-highest-opportunity") {
+      setActivePage("highest-opportunity");
+      return;
+    }
+    if (action === "acknowledge-highest-opportunity") {
+      if (state.activeCampaign?.status === "active") {
+        setActivePage("today");
+        return;
+      }
+      state.ownerJourney.acknowledgedHighestOpportunity = true;
+      const area = marketingAreaFromDecision(state.bestNextMove);
+      state.ownerJourney.selectedMarketingArea = area;
+      state.marketingPlan = prepareOwnerMarketingPlan(area, state.businessIntelligenceProfile, state.bestNextMove, "highest_opportunity");
+      saveDemoState();
+      setActivePage("today");
+      return;
+    }
+    if (action === "explore-marketing-opportunity") {
+      const area = button?.dataset?.opportunityArea || "visibility";
+      navigateWithContext("marketing-opportunity", { area });
+      return;
+    }
+    if (action === "use-marketing-area") {
+      if (state.activeCampaign?.status === "active") {
+        setActivePage("today");
+        return;
+      }
+      const area = button?.dataset?.opportunityArea || "visibility";
+      state.ownerJourney.selectedMarketingArea = area;
+      state.marketingPlan = prepareOwnerMarketingPlan(area, state.businessIntelligenceProfile, state.bestNextMove, "owner_choice");
+      saveDemoState();
+      setActivePage("today");
+      return;
+    }
+    if (action === "review-marketing-plan") {
+      setActivePage("marketing-plan");
+      return;
+    }
+    if (action === "approve-marketing-plan") {
+      const plan = state.marketingPlan;
+      if (!plan || plan.status !== "draft" || state.activeCampaign?.status === "active") {
+        setActivePage("today");
+        return;
+      }
+      state.activeCampaign = {
+        ...plan,
+        campaign_type: "owner_active_campaign",
+        status: "active",
+        approved_at: new Date().toISOString(),
+      };
+      state.marketingPlan = null;
+      saveDemoState();
+      setActivePage("today");
+      return;
+    }
+    if (action === "return-to-today") {
+      setActivePage("today");
+      return;
+    }
     if (action === "open-settings") {
       setActivePage("settings");
       return;
@@ -8624,41 +8860,417 @@ function renderRealEmptyPage(label, title, message) {
   `;
 }
 
+function ownerJourneyField(label, name, value = "", type = "text", placeholder = "", required = false) {
+  return `
+    <label class="settings-field">
+      <span>${studioEscape(label)}</span>
+      <input name="${studioEscape(name)}" type="${studioEscape(type)}" value="${studioEscape(value)}" placeholder="${studioEscape(placeholder)}" ${required ? "required" : ""}>
+    </label>
+  `;
+}
+
+function renderSignUpPage() {
+  const journey = stableState().ownerJourney;
+  contentStage.innerHTML = `
+    <div class="growth-os-page settings-os-page">
+      <header class="growth-os-header">
+        <p class="section-label">Welcome to Harvest</p>
+        <h2>Make marketing clearer.</h2>
+        <p>Harvest learns how your business works, identifies useful opportunities, and guides you one step at a time.</p>
+      </header>
+      <section class="settings-section">
+        <form class="settings-form-grid" data-owner-form="signup">
+          ${ownerJourneyField("Your name", "ownerName", journey.account?.ownerName, "text", "Your name", true)}
+          ${ownerJourneyField("Email", "email", journey.account?.email, "email", "you@example.com", true)}
+          <label class="settings-field">
+            <span>Preferred language</span>
+            <select name="preferredLanguage"><option>English</option><option>French</option><option>Arabic</option></select>
+          </label>
+          <div class="account-actions"><button type="submit">Continue</button></div>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+function renderWelcomePage() {
+  const ownerName = stableState().ownerJourney.account?.ownerName;
+  contentStage.innerHTML = `
+    <div class="growth-os-page">
+      <header class="growth-os-header">
+        <p class="section-label">Your marketing partner</p>
+        <h2>Welcome${ownerName ? `, ${studioEscape(ownerName)}` : ""}.</h2>
+        <p>I’m Harvest. I’ll learn enough about your business to identify the opportunity I would prioritize first.</p>
+      </header>
+      <section class="guided-empty-state">
+        <strong>You will always remain in control.</strong>
+        <p>I’ll explain my professional priority and show you other marketing areas you can freely explore.</p>
+        <button type="button" data-demo-action="begin-owner-onboarding">Tell Harvest about my business</button>
+      </section>
+    </div>
+  `;
+}
+
+function onboardingGoalOptions(selected = "") {
+  const options = [
+    "Bring in more customers",
+    "Increase weekday customers",
+    "Generate more bookings",
+    "Increase sales",
+    "Bring customers back",
+    "Improve local reputation",
+    "Become more visible",
+    "I'm not sure",
+  ];
+  return `<option value="">Choose one</option>${options.map((option) => `<option ${option === selected ? "selected" : ""}>${studioEscape(option)}</option>`).join("")}`;
+}
+
+function renderBusinessOnboardingPage(step = 1) {
+  const state = stableState();
+  const profile = state.businessIntelligenceProfile;
+  if (Number(step) === 1) {
+    contentStage.innerHTML = `
+      <div class="growth-os-page settings-os-page">
+        <header class="growth-os-header">
+          <p class="section-label">Business setup · 1 of 2</p>
+          <h2>Tell me about your business.</h2>
+          <p>Start with the essentials. You can add more detail later.</p>
+        </header>
+        <section class="settings-section">
+          <form class="settings-form-grid" data-owner-form="onboarding-basics">
+            ${ownerJourneyField("Business name", "businessName", profile.identity?.businessName, "text", "Atlas Café", true)}
+            ${ownerJourneyField("Business type", "businessType", profile.identity?.businessCategory || profile.identity?.industry, "text", "Café, salon, gym…", true)}
+            ${ownerJourneyField("City", "city", profile.identity?.city, "text", "Casablanca", true)}
+            ${ownerJourneyField("Average customer spend", "averageOrderValue", profile.products?.averageOrderValue, "number", "Optional")}
+            <div class="account-actions"><button type="submit">Continue</button></div>
+          </form>
+        </section>
+      </div>
+    `;
+    return;
+  }
+
+  contentStage.innerHTML = `
+    <div class="growth-os-page settings-os-page">
+      <header class="growth-os-header">
+        <p class="section-label">Business setup · 2 of 2</p>
+        <h2>What should marketing improve first?</h2>
+        <p>Rough answers are enough. Optional information can improve confidence.</p>
+      </header>
+      <section class="settings-section">
+        <form class="settings-form-grid" data-owner-form="onboarding-context">
+          <label class="settings-field"><span>Main business goal</span><select name="primaryGoal" required>${onboardingGoalOptions(profile.goals?.primaryGoal)}</select></label>
+          ${ownerJourneyField("Typical customer", "targetAudience", profile.customers?.targetAudience, "text", "Office workers, families, students…", true)}
+          ${ownerJourneyField("Time available each week", "availableTime", profile.resources?.availableTime, "text", "Optional")}
+          ${ownerJourneyField("Main platform", "primaryPlatform", profile.marketing?.instagram ? "Instagram" : "", "text", "Optional")}
+          ${ownerJourneyField("Current reviews", "reviews", profile.performance?.reviews, "number", "Optional")}
+          ${ownerJourneyField("Current rating", "averageRating", profile.performance?.averageRating, "number", "Optional")}
+          <div class="account-actions">
+            <button type="button" class="button-secondary" data-demo-action="owner-onboarding-back">Back</button>
+            <button type="submit">Analyze my business</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+function renderHarvestAnalysisPage() {
+  const state = stableState();
+  const profile = state.businessIntelligenceProfile;
+  const diagnosis = state.businessDiagnosis || {};
+  const missing = diagnosis.data_quality?.missing_fields || diagnosis.data_quality?.missing || [];
+  contentStage.innerHTML = `
+    <div class="growth-os-page">
+      <header class="growth-os-header">
+        <p class="section-label">Harvest Analysis</p>
+        <h2>I understand enough about your business to begin helping you.</h2>
+        <p>Here is my first reading of ${studioEscape(profile.identity?.businessName || "your business")}. You can improve it later as I learn more.</p>
+      </header>
+      <section class="business-health-card business-health-card--compact">
+        <div class="health-status-copy"><span>YOUR CURRENT GOAL</span><p>${ownerProfileValue(profile.goals?.primaryGoal)}</p></div>
+        <div class="health-status-copy"><span>WHAT APPEARS TO BE WORKING</span><p>${ownerProfileValue(diagnosis.biggest_strength?.label)}</p></div>
+        <div class="health-status-copy"><span>WHAT MAY LIMIT GROWTH</span><p>${ownerProfileValue(diagnosis.highest_priority_problem?.label || diagnosis.biggest_weakness?.label)}</p></div>
+      </section>
+      <section class="guided-empty-state">
+        <strong>Analysis confidence: ${ownerProfileValue(diagnosis.confidence?.level || diagnosis.confidence?.score)}</strong>
+        <p>${missing.length ? "Some information is still missing, so I’ll keep uncertainty visible." : "This analysis uses the information you provided."}</p>
+        <button type="button" data-demo-action="complete-analysis-review">See my Highest Opportunity</button>
+        <button type="button" class="button-secondary" data-demo-action="open-settings">Correct my business information</button>
+      </section>
+    </div>
+  `;
+}
+
+function marketingOpportunityAreas() {
+  return {
+    advertising: { title: "Advertising", description: "Reach potential customers through paid promotion." },
+    brand: { title: "Brand Image", description: "Improve how clearly and consistently the business is perceived." },
+    content: { title: "Content", description: "Show the business through useful, relevant photos, videos, and stories." },
+    loyalty: { title: "Customer Loyalty", description: "Give existing customers more reasons to return and stay connected." },
+    promotions: { title: "Promotions", description: "Create timely reasons for customers to act without weakening the brand." },
+    events: { title: "Events", description: "Use local, seasonal, or business moments to create customer interest." },
+    visibility: { title: "Visibility", description: "Help more of the right people discover and remember the business." },
+    reviews: { title: "Reviews", description: "Strengthen trust through honest customer feedback and public reputation." },
+  };
+}
+
+function marketingAreaFromDecision(decision = {}) {
+  const kind = campaignKindFromDecision(decision);
+  if (kind === "review") return "reviews";
+  if (kind === "reel") return "content";
+  if (kind === "whatsapp") return "loyalty";
+  if (kind === "menu") return "promotions";
+  return "visibility";
+}
+
+function prepareOwnerMarketingPlan(areaId, profile, bestNextMove = {}, source = "owner_choice") {
+  const areas = marketingOpportunityAreas();
+  const area = areas[areaId] || areas.visibility;
+  const areaKinds = {
+    advertising: "general", brand: "reel", content: "reel", loyalty: "whatsapp",
+    promotions: "menu", events: "menu", visibility: "general", reviews: "review",
+  };
+  const kind = areaKinds[areaId] || "general";
+  const planDecision = source === "highest_opportunity"
+    ? bestNextMove
+    : { ...bestNextMove, campaign_name: `${area.title} Marketing Plan`, expected_impact: area.description };
+  const steps = campaignChecklistFor(kind).slice(0, 5).map((item, index) => ({
+    id: `plan-step-${index + 1}`,
+    title: item.task,
+  }));
+  return {
+    plan_type: "owner_marketing_plan",
+    status: "draft",
+    source,
+    area_id: areaId,
+    area_name: area.title,
+    title: source === "highest_opportunity" ? (bestNextMove.campaign_name || `${area.title} Marketing Plan`) : `${area.title} Marketing Plan`,
+    objective: source === "highest_opportunity" ? (bestNextMove.expected_impact || area.description) : area.description,
+    target_audience: campaignAudience(profile),
+    recommended_channels: campaignPlatforms(kind, profile),
+    expected_duration: kind === "review" ? "4 weeks" : "1-2 weeks",
+    effort: bestNextMove.effort || "Focused weekly effort",
+    steps,
+    prepared_at: new Date().toISOString(),
+  };
+}
+
+function marketingAreaInsight(areaId, profile) {
+  const facts = [];
+  const missing = [];
+  const addFact = (label, value) => { if (biKnown(value)) facts.push(`${label}: ${value}`); };
+  const need = (label, value) => { if (!biKnown(value)) missing.push(label); };
+  const marketing = profile.marketing || {};
+  const resources = profile.resources || {};
+  const performance = profile.performance || {};
+
+  if (areaId === "advertising") {
+    addFact("Advertising activity", marketing.runningAds); addFact("Advertising budget", resources.advertisingBudget);
+    need("whether advertising is currently running", marketing.runningAds); need("an available advertising budget", resources.advertisingBudget);
+  } else if (areaId === "brand") {
+    addFact("Business positioning", profile.identity?.businessCategory || profile.identity?.industry); addFact("Competitive advantage", profile.competition?.biggestCompetitiveAdvantage);
+    need("the business's clearest competitive advantage", profile.competition?.biggestCompetitiveAdvantage); need("how the brand currently appears to customers", profile.observations?.consultantNotes);
+  } else if (areaId === "content") {
+    addFact("Current content", marketing.currentContentTypes); addFact("Posting frequency", marketing.postingFrequency); addFact("Main social presence", marketing.instagram || marketing.facebook || marketing.tiktok);
+    need("the content currently being published", marketing.currentContentTypes); need("current posting frequency", marketing.postingFrequency);
+  } else if (areaId === "loyalty") {
+    addFact("Returning customers", profile.customers?.returningCustomerPercentage); addFact("WhatsApp availability", marketing.whatsapp);
+    need("the share of customers who return", profile.customers?.returningCustomerPercentage); need("how customer relationships are currently maintained", marketing.whatsapp);
+  } else if (areaId === "promotions") {
+    addFact("Products needing promotion", profile.products?.productsNeedingPromotion); addFact("Average customer spend", profile.products?.averageOrderValue || performance.averageOrderValue);
+    need("which products need more attention", profile.products?.productsNeedingPromotion); need("product margins or promotion limits", profile.products?.highestMarginProducts);
+  } else if (areaId === "events") {
+    addFact("Relevant local events", profile.context?.localEvents); addFact("Seasonal products", profile.products?.seasonalProducts);
+    need("relevant local or business events", profile.context?.localEvents); need("important seasonal periods", profile.products?.seasonalProducts);
+  } else if (areaId === "visibility") {
+    addFact("City", profile.identity?.city); addFact("Google Business Profile", marketing.googleBusinessProfile); addFact("Website", marketing.website);
+    need("Google Business Profile activity", marketing.googleBusinessProfile); need("the main discovery channels customers use", marketing.website || marketing.instagram);
+  } else {
+    addFact("Current reviews", performance.reviews); addFact("Average rating", performance.averageRating); addFact("Google Business Profile", marketing.googleBusinessProfile);
+    need("the current number of reviews", performance.reviews); need("the current average rating", performance.averageRating);
+  }
+
+  let status = "Needs information";
+  if (areaId === "advertising" && /yes|active|running/i.test(String(marketing.runningAds))) status = "Already active";
+  else if (areaId === "content" && (biKnown(marketing.currentContentTypes) || biKnown(marketing.postingFrequency))) status = "Already active";
+  else if (areaId === "visibility" && (biKnown(marketing.googleBusinessProfile) || biKnown(marketing.website))) status = "Already active";
+  else if (areaId === "reviews" && biKnown(performance.reviews) && biKnown(performance.averageRating)) status = "Worth exploring";
+  else if (areaId === "loyalty" && !biKnown(profile.customers?.returningCustomerPercentage)) status = "Needs attention";
+  else if (facts.length) status = "Worth exploring";
+  return { facts, missing, status };
+}
+
+function highestOpportunityKnownFacts(profile) {
+  const candidates = [
+    ["Business goal", profile.goals?.primaryGoal], ["Current challenge", profile.goals?.currentBiggestChallenge],
+    ["Typical customer", profile.customers?.targetAudience], ["Current reviews", profile.performance?.reviews],
+    ["Average rating", profile.performance?.averageRating], ["Posting frequency", profile.marketing?.postingFrequency],
+    ["Available time", profile.resources?.availableTime], ["Business location", profile.identity?.city],
+  ];
+  return candidates.filter(([, value]) => biKnown(value)).slice(0, 6).map(([label, value]) => `${label}: ${value}`);
+}
+
+function friendlyMissingProfileFacts(diagnosis) {
+  const labels = {
+    "goals.currentBiggestChallenge": "the main business challenge", "goals.successMetric": "how success should be measured",
+    "customers.buyingMotivations": "why customers choose the business", "customers.returningCustomerPercentage": "the share of returning customers",
+    "resources.monthlyMarketingBudget": "the available marketing budget", "performance.weeklyCustomers": "current weekly customer volume",
+    "competition.mainCompetitors": "the main local competitors", "marketing.currentContentTypes": "the content currently being published",
+  };
+  const missing = diagnosis.data_quality?.missing_fields || diagnosis.data_quality?.missing || [];
+  return missing.map((path) => labels[path]).filter(Boolean).slice(0, 5);
+}
+
+function renderMarketingOpportunityPage(areaId) {
+  const area = marketingOpportunityAreas()[areaId] || marketingOpportunityAreas().visibility;
+  const profile = stableState().businessIntelligenceProfile;
+  const insight = marketingAreaInsight(areaId, profile);
+  contentStage.innerHTML = `
+    <div class="growth-os-page">
+      <header class="growth-os-header">
+        <p class="section-label">Marketing Opportunity</p>
+        <h2>${studioEscape(area.title)}</h2>
+        <p>${studioEscape(area.description)}</p>
+      </header>
+      <section class="marketing-area-detail">
+        <div><span>What this area helps improve</span><p>${studioEscape(area.description)} Harvest can help you work on this area. A focused analysis is needed before preparing a plan.</p></div>
+        <div><span>Known relevant facts</span>${insight.facts.length ? `<ul>${insight.facts.map((fact) => `<li>${studioEscape(fact)}</li>`).join("")}</ul>` : "<p>No directly relevant information has been provided yet.</p>"}</div>
+        <div><span>What Harvest needs to know</span>${insight.missing.length ? `<ul>${insight.missing.map((fact) => `<li>${studioEscape(fact)}</li>`).join("")}</ul>` : "<p>The current profile contains the basic facts needed for a focused analysis.</p>"}</div>
+        <div><span>What comes next</span><p>The next sprint will eventually use a focused analysis to prepare a responsible plan. No plan or campaign is created here.</p></div>
+        <div class="marketing-area-actions">
+          <button type="button" data-demo-action="use-marketing-area" data-opportunity-area="${studioEscape(areaId)}">Use this area</button>
+          <button type="button" class="button-secondary" data-demo-action="open-settings">Add missing information</button>
+          <button type="button" class="button-secondary" data-demo-action="return-to-today">Return to Today</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderHighestOpportunityPage() {
+  const state = stableState();
+  const decision = state.bestNextMove || {};
+  const profile = state.businessIntelligenceProfile;
+  const knownFacts = highestOpportunityKnownFacts(profile);
+  const missingFacts = friendlyMissingProfileFacts(state.businessDiagnosis || {});
+  contentStage.innerHTML = `
+    <div class="growth-os-page">
+      <header class="growth-os-header">
+        <p class="section-label">⭐ Highest Opportunity</p>
+        <h2>${ownerProfileValue(decision.campaign_name)}</h2>
+        <p>${ownerProfileValue(decision.expected_impact)}</p>
+      </header>
+      <section class="business-opportunity-card">
+        <div class="opportunity-explanation"><span>What Harvest found</span><p>${ownerProfileValue(decision.campaign_name)}</p></div>
+        <div class="opportunity-explanation"><span>Why this area matters</span><p>${studioEscape((decision.why || []).join(" ") || "The available business information points to this as the strongest area to examine first.")}</p></div>
+        <div class="opportunity-explanation"><span>Expected business effect</span><p>${ownerProfileValue(decision.expected_impact)}</p></div>
+        <div class="business-value-row">
+          <div><span>Confidence</span><strong>${ownerProfileValue(decision.confidence)}</strong></div>
+          <div><span>Effort</span><strong>${ownerProfileValue(decision.effort)}</strong></div>
+          <div><span>Time</span><strong>${ownerProfileValue(decision.time_required)}</strong></div>
+        </div>
+        <div class="opportunity-explanation"><span>Known facts used</span>${knownFacts.length ? `<ul>${knownFacts.map((fact) => `<li>${studioEscape(fact)}</li>`).join("")}</ul>` : "<p>No supporting business facts have been provided yet.</p>"}</div>
+        <div class="opportunity-explanation"><span>Important missing information</span>${missingFacts.length ? `<ul>${missingFacts.map((fact) => `<li>${studioEscape(fact)}</li>`).join("")}</ul>` : "<p>No important information gaps are currently visible.</p>"}</div>
+        <div class="next-action-box"><span>Recommendation disclaimer</span><strong>This is a professional recommendation based on the information currently available, not a guarantee of results.</strong><button type="button" data-demo-action="acknowledge-highest-opportunity">Choose this opportunity</button></div>
+      </section>
+      <button type="button" class="button-secondary" data-demo-action="return-to-today">Return to Today</button>
+    </div>
+  `;
+}
+
+function renderMarketingPlanReviewPage() {
+  const state = stableState();
+  const plan = state.marketingPlan;
+  if (!plan || plan.status !== "draft") {
+    contentStage.innerHTML = `
+      <div class="growth-os-page">
+        <header class="growth-os-header">
+          <p class="section-label">Marketing Plan</p>
+          <h2>No plan is ready for review.</h2>
+          <p>Choose one marketing area from Today first.</p>
+        </header>
+        <button type="button" class="button-secondary" data-demo-action="return-to-today">Return to Today</button>
+      </div>
+    `;
+    return;
+  }
+
+  const audience = Array.isArray(plan.target_audience) ? plan.target_audience.join(", ") : plan.target_audience;
+  const channels = Array.isArray(plan.recommended_channels) ? plan.recommended_channels.join(", ") : plan.recommended_channels;
+  const steps = Array.isArray(plan.steps) ? plan.steps : [];
+  contentStage.innerHTML = `
+    <div class="growth-os-page marketing-plan-review">
+      <header class="growth-os-header">
+        <p class="section-label">Marketing Plan · Draft</p>
+        <h2>${ownerProfileValue(plan.title)}</h2>
+        <p>Review the plan Harvest prepared for ${studioEscape(plan.area_name || "your selected area")}.</p>
+      </header>
+      <section class="business-opportunity-card">
+        <div class="opportunity-explanation"><span>Objective</span><p>${ownerProfileValue(plan.objective)}</p></div>
+        <div class="business-value-row marketing-plan-facts">
+          <div><span>Audience</span><strong>${ownerProfileValue(audience)}</strong></div>
+          <div><span>Channels</span><strong>${ownerProfileValue(channels)}</strong></div>
+          <div><span>Duration</span><strong>${ownerProfileValue(plan.expected_duration)}</strong></div>
+          <div><span>Effort</span><strong>${ownerProfileValue(plan.effort)}</strong></div>
+        </div>
+        <div class="marketing-plan-steps">
+          <span>What the plan includes</span>
+          <ol>${steps.map((step) => `<li>${studioEscape(step.title)}</li>`).join("")}</ol>
+        </div>
+        <div class="opportunity-explanation"><span>What to do now</span><p>Review the objective, audience, channels, and steps. Nothing will start until you approve the plan.</p></div>
+        <div class="next-action-box"><span>Your decision</span><strong>Approve this plan to make it your single active campaign.</strong><button type="button" data-demo-action="approve-marketing-plan">Approve Marketing Plan</button></div>
+      </section>
+      <button type="button" class="button-secondary" data-demo-action="return-to-today">Return to Today</button>
+    </div>
+  `;
+}
+
 function renderRealTodayPage() {
   const state = stableState();
   const profile = state.businessIntelligenceProfile;
-  const name = profile.identity?.businessName;
-  const facts = [
-    ["Business type", profile.identity?.businessCategory || profile.identity?.industry],
-    ["City", profile.identity?.city],
-    ["Primary goal", profile.goals?.primaryGoal],
-    ["Average spend", biKnown(profile.products?.averageOrderValue || profile.performance?.averageOrderValue)
-      ? `${Number(profile.products?.averageOrderValue || profile.performance?.averageOrderValue).toLocaleString()} MAD`
-      : ""],
-    ["Reviews", profile.performance?.reviews],
-    ["Rating", profile.performance?.averageRating],
-  ];
+  const journey = state.ownerJourney || defaultOwnerJourney();
+  if (!journey.accountCreated) { renderSignUpPage(); return; }
+  if (!journey.welcomeCompleted) { renderWelcomePage(); return; }
+  if (journey.onboardingStatus !== "completed") { renderBusinessOnboardingPage(journey.onboardingStep || 1); return; }
+  if (!journey.analysisReviewed) { renderHarvestAnalysisPage(); return; }
+
+  const diagnosis = state.businessDiagnosis || {};
+  const decision = state.bestNextMove || {};
+  const opportunities = marketingOpportunityAreas();
+  const selectedArea = opportunities[journey.selectedMarketingArea];
+  const marketingPlan = state.marketingPlan?.status === "draft" ? state.marketingPlan : null;
+  const activeCampaign = state.activeCampaign?.status === "active" ? state.activeCampaign : null;
   pageTitle.textContent = "SOLO · Today";
   contentStage.innerHTML = `
     <div class="solo-home-page">
       <header class="solo-home-heading">
-        <p>${name ? "Business overview" : "Welcome to SOLO"}</p>
-        <h2>${name ? studioEscape(name) : "Complete your business profile."}</h2>
+        <p>Harvest Analysis</p>
+        <h2>${studioEscape(profile.identity?.businessName)}</h2>
       </header>
-      <section class="home-kpi-bar" aria-label="Business profile summary">
-        ${facts.map(([label, value]) => `
-          <article class="home-kpi">
-            <span>${studioEscape(label)}</span>
-            <strong>${ownerProfileValue(value)}</strong>
-          </article>
-        `).join("")}
+      <section class="business-health-card business-health-card--compact">
+        <div class="health-status-copy"><span>CURRENT GOAL</span><p>${ownerProfileValue(profile.goals?.primaryGoal)}</p></div>
+        <div class="health-status-copy"><span>MAIN CONSTRAINT</span><p>${ownerProfileValue(diagnosis.highest_priority_problem?.label || diagnosis.biggest_weakness?.label)}</p></div>
+        <div class="health-status-copy"><span>ANALYSIS CONFIDENCE</span><p>${ownerProfileValue(diagnosis.confidence?.level || diagnosis.confidence?.score)}</p></div>
       </section>
-      <section class="guided-empty-state">
-        <strong>${name ? "Your business profile is active." : "Business information is needed."}</strong>
-        <p>${name
-          ? "SOLO is using only the information saved in this business profile. A professional recommendation will appear after the decision experience is stabilized."
-          : "Open Settings and add what you know. Information you do not provide will remain unknown."}</p>
-        ${name ? "" : `<button type="button" data-demo-action="open-settings">Open Settings</button>`}
+      <section class="business-opportunity-card">
+        <div class="business-opportunity-main"><span>⭐ HIGHEST OPPORTUNITY</span><h3>${ownerProfileValue(decision.campaign_name)}</h3></div>
+        <div class="opportunity-explanation"><span>Why Harvest prioritized this</span><p>${studioEscape((decision.why || []).slice(0, 2).join(" ") || "This is the strongest opportunity supported by the information currently available.")}</p></div>
+        <div class="business-value-row">
+          <div><span>Expected impact</span><strong>${ownerProfileValue(decision.expected_impact)}</strong></div>
+          <div><span>Confidence</span><strong>${ownerProfileValue(decision.confidence)}</strong></div>
+        </div>
+        <div class="next-action-box"><span>Harvest recommends</span><strong>Explore the reasoning and known facts before choosing.</strong><button type="button" data-demo-action="review-highest-opportunity">Explore this opportunity</button></div>
+      </section>
+      ${selectedArea ? `<section class="selected-marketing-area"><span>Selected Marketing Area</span><strong>You chose to work on ${studioEscape(selectedArea.title)}.</strong></section>` : ""}
+      ${marketingPlan ? `<section class="marketing-plan-ready"><div><span>YOUR NEXT STEP</span><strong>Your Marketing Plan is ready.</strong><p>${studioEscape(marketingPlan.title)} has been prepared for review.</p></div><button type="button" data-demo-action="review-marketing-plan">Review plan</button></section>` : ""}
+      ${activeCampaign ? `<section class="active-campaign-confirmation"><span>ACTIVE CAMPAIGN</span><strong>Your marketing plan is now active.</strong><p>${studioEscape(activeCampaign.title)}</p></section>` : ""}
+      <section class="loop-group">
+        <div class="loop-group__heading"><span>Marketing Opportunities</span><strong>Other areas you can explore</strong></div>
+        <p>These are business improvement areas, not recommendations. You decide what is worth exploring.</p>
+        <div class="marketing-opportunity-grid">
+          ${Object.entries(opportunities).map(([id, area]) => { const insight = marketingAreaInsight(id, profile); return `<article class="marketing-opportunity-card"><div><strong>${studioEscape(area.title)}</strong><span class="marketing-area-status">${studioEscape(insight.status)}</span></div><p>${studioEscape(area.description)}</p><button type="button" class="button-secondary" data-demo-action="explore-marketing-opportunity" data-opportunity-area="${id}">Explore</button></article>`; }).join("")}
+        </div>
       </section>
     </div>
   `;
