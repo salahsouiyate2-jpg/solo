@@ -13539,6 +13539,39 @@ body[data-page] .sidebar {
 .owner-current-task p, .owner-current-task small { color: rgba(255, 255, 255, 0.75); }
 .owner-current-task button { justify-self: start; min-height: 42px; padding: 0 16px; border: 0; border-radius: 9px; background: #fff; color: var(--solo-ink); font: inherit; font-weight: 800; cursor: pointer; }
 
+.owner-result-next,
+.owner-result-card,
+.owner-result-summary {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border: 0.5px solid var(--solo-line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.owner-result-next > span,
+.owner-result-card > div > span,
+.owner-result-summary span {
+  color: var(--solo-green-dark);
+  font-size: 0.74rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.owner-result-next strong { color: var(--solo-ink); font-size: 1.15rem; }
+.owner-result-next p, .owner-result-card p, .owner-result-summary p { margin: 0; color: var(--solo-muted); line-height: 1.5; }
+.owner-result-next button, .owner-result-form button { justify-self: start; min-height: 42px; padding: 0 16px; border: 0; border-radius: 9px; background: var(--solo-ink); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.owner-result-card h3, .owner-result-summary h3 { margin: 6px 0 0; color: var(--solo-ink); }
+.owner-result-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.owner-result-form label { display: grid; gap: 7px; color: var(--solo-ink); font-size: 0.84rem; font-weight: 750; }
+.owner-result-form label span { display: flex; justify-content: space-between; gap: 8px; }
+.owner-result-form label small { color: var(--solo-muted); font-weight: 500; }
+.owner-result-form input, .owner-result-form textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--solo-line); border-radius: 9px; background: #fff; color: var(--solo-ink); font: inherit; }
+.owner-result-notes, .owner-result-form button { grid-column: 1 / -1; }
+.owner-result-summary article { display: grid; gap: 7px; padding-top: 14px; border-top: 1px solid var(--solo-line); }
+
 .marketing-plan-review { max-width: 920px; }
 .marketing-plan-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .marketing-plan-facts div:first-child strong { color: var(--solo-ink); font-size: 0.95rem; }
@@ -14113,6 +14146,8 @@ body[data-page] .sidebar {
   .selected-marketing-area { align-items: flex-start; flex-direction: column; }
   .marketing-plan-ready { align-items: flex-start; flex-direction: column; }
   .marketing-plan-ready button { width: 100%; }
+  .owner-result-form { grid-template-columns: 1fr; }
+  .owner-result-form > * { grid-column: 1; }
 
   .next-action-box button,
   .solo-prepared-card > button {

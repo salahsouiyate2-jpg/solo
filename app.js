@@ -1235,6 +1235,33 @@ document.addEventListener("submit", (event) => {
       setActivePage("harvest-analysis");
       return;
     }
+
+    if (ownerForm.dataset.ownerForm === "campaign-results") {
+      const campaign = state.activeCampaign;
+      if (!campaign || campaign.status !== "completed" || campaign.result) {
+        setActivePage("campaigns");
+        return;
+      }
+      const optionalNumber = (name) => {
+        const value = String(data.get(name) || "").trim();
+        return value === "" ? null : Math.max(0, Number(value) || 0);
+      };
+      campaign.result = {
+        result_type: "campaign_result",
+        campaign_title: campaign.title,
+        customers_gained: Math.max(0, Number(data.get("customersGained")) || 0),
+        revenue_generated: optionalNumber("revenueGenerated"),
+        reviews_received: Math.max(0, Number(data.get("reviewsReceived")) || 0),
+        messages_or_leads: optionalNumber("messagesOrLeads"),
+        money_spent: optionalNumber("moneySpent"),
+        notes: String(data.get("notes") || "").trim(),
+        recorded_at: new Date().toISOString(),
+      };
+      state.activeCampaign = campaign;
+      saveDemoState();
+      setActivePage("campaigns");
+      return;
+    }
   }
 
   const studioForm = event.target.closest("[data-demo-form='studio-assets']");
@@ -2343,6 +2370,8 @@ function renderRealCampaignExecutionPage() {
   const isCompleted = campaign.status === "completed" || (tasks.length > 0 && completedCount === tasks.length);
   const currentIndex = Math.min(Number(campaign.execution?.current_task_index || 0), Math.max(tasks.length - 1, 0));
   const currentTask = isCompleted ? null : tasks[currentIndex];
+  const showResultForm = isCompleted && !campaign.result && routeContext.action === "add-results";
+  const resultSummary = campaign.result ? summarizeOwnerCampaignResult(campaign.result) : null;
 
   contentStage.innerHTML = `
     <div class="growth-os-page owner-execution-page">
@@ -2375,7 +2404,88 @@ function renderRealCampaignExecutionPage() {
           }).join("")}
         </div>
       </section>
+      ${isCompleted && !campaign.result && !showResultForm ? `<section class="owner-result-next"><span>Your next step</span><strong>Add campaign results</strong><p>Record only what you know from this completed campaign.</p><button type="button" data-demo-action="show-campaign-results-form">Add campaign results</button></section>` : ""}
+      ${showResultForm ? renderOwnerCampaignResultForm() : ""}
+      ${resultSummary ? renderOwnerCampaignResultSummary(resultSummary) : ""}
     </div>
+  `;
+}
+
+function summarizeOwnerCampaignResult(result = {}) {
+  const customers = Number(result.customers_gained || 0);
+  const reviews = Number(result.reviews_received || 0);
+  const revenueKnown = result.revenue_generated !== null && result.revenue_generated !== undefined;
+  const messagesKnown = result.messages_or_leads !== null && result.messages_or_leads !== undefined;
+  const spendKnown = result.money_spent !== null && result.money_spent !== undefined;
+  const revenue = revenueKnown ? Number(result.revenue_generated || 0) : 0;
+  const messages = messagesKnown ? Number(result.messages_or_leads || 0) : 0;
+  const spend = spendKnown ? Number(result.money_spent || 0) : 0;
+  const requiredDataKnown = result.customers_gained !== null && result.customers_gained !== undefined
+    && result.reviews_received !== null && result.reviews_received !== undefined;
+  const positiveSignals = [customers > 0, reviews > 0, revenue > 0, messages > 0].filter(Boolean).length;
+  const assessment = !requiredDataKnown ? "Does not have enough data" : positiveSignals >= 2 ? "Worked" : positiveSignals === 1 ? "Partially worked" : "Did not work";
+  const assessment_reason = !requiredDataKnown
+    ? "The required customer or review result is missing."
+    : positiveSignals >= 2
+      ? `${positiveSignals} positive result types were recorded.`
+      : positiveSignals === 1
+        ? "One positive result type was recorded."
+        : "No positive result was recorded.";
+  const happened = [`${customers} customers gained`, `${reviews} reviews received`];
+  if (revenueKnown) happened.push(`${revenue.toLocaleString("en-US")} MAD revenue generated`);
+  if (messagesKnown) happened.push(`${messages} messages or leads`);
+  if (spendKnown) happened.push(`${spend.toLocaleString("en-US")} MAD spent`);
+  const changes = [];
+  if (customers > 0) changes.push(`The owner recorded ${customers} additional customer${customers === 1 ? "" : "s"}.`);
+  if (reviews > 0) changes.push(`${reviews} new review${reviews === 1 ? " was" : "s were"} recorded.`);
+  if (messages > 0) changes.push(`${messages} message${messages === 1 ? " or lead was" : "s or leads were"} reported.`);
+  if (revenue > 0) changes.push(`${revenue.toLocaleString("en-US")} MAD in revenue was reported.`);
+  const impact = revenueKnown && spendKnown
+    ? `Reported revenue was ${revenue.toLocaleString("en-US")} MAD and recorded spend was ${spend.toLocaleString("en-US")} MAD. Net influenced value: ${(revenue - spend).toLocaleString("en-US")} MAD.`
+    : revenueKnown
+      ? `Reported revenue was ${revenue.toLocaleString("en-US")} MAD. Money spent was not provided, so net influenced value cannot be calculated.`
+      : spendKnown
+        ? `Recorded spend was ${spend.toLocaleString("en-US")} MAD. Revenue was not provided, so net influenced value cannot be calculated.`
+        : `The recorded customer, review, and lead changes may have been influenced by the campaign; revenue impact was not provided.`;
+  return {
+    happened: happened.join(" · "),
+    changed: changes.join(" ") || "No positive business change was recorded.",
+    assessment,
+    assessment_reason: `${assessment_reason} This describes the owner's record and does not prove causation.`,
+    impact,
+    next_step: "Keep this as the final recorded result for this campaign.",
+    notes: result.notes || "",
+  };
+}
+
+function renderOwnerCampaignResultForm() {
+  return `
+    <section class="owner-result-card">
+      <div><span>Campaign results</span><h3>Add campaign results</h3><p>Use only results you recorded or can reasonably report.</p></div>
+      <form class="owner-result-form" data-owner-form="campaign-results">
+        <label><span>Customers gained</span><input type="number" name="customersGained" min="0" required></label>
+        <label><span>Revenue generated <small>Optional</small></span><input type="number" name="revenueGenerated" min="0" step="0.01"></label>
+        <label><span>Reviews received</span><input type="number" name="reviewsReceived" min="0" required></label>
+        <label><span>Messages or leads <small>Optional</small></span><input type="number" name="messagesOrLeads" min="0"></label>
+        <label><span>Money spent <small>Optional</small></span><input type="number" name="moneySpent" min="0" step="0.01"></label>
+        <label class="owner-result-notes"><span>Notes</span><textarea name="notes" rows="4"></textarea></label>
+        <button type="submit">Save campaign results</button>
+      </form>
+    </section>
+  `;
+}
+
+function renderOwnerCampaignResultSummary(summary) {
+  return `
+    <section class="owner-result-summary">
+      <div><span>Harvest summary</span><h3>${studioEscape(summary.assessment)}</h3></div>
+      <article><span>1. What happened</span><p>${studioEscape(summary.happened)}</p></article>
+      <article><span>2. What changed</span><p>${studioEscape(summary.changed)}</p></article>
+      <article><span>3. Assessment</span><p><strong>${studioEscape(summary.assessment)}.</strong> ${studioEscape(summary.assessment_reason)}</p></article>
+      <article><span>4. Simple business impact</span><p>${studioEscape(summary.impact)}</p></article>
+      <article><span>5. Next step</span><p>${studioEscape(summary.next_step)}</p></article>
+      ${summary.notes ? `<article><span>Owner notes</span><p>${studioEscape(summary.notes)}</p></article>` : ""}
+    </section>
   `;
 }
 
@@ -5416,7 +5526,7 @@ function handleDemoAction(action, button) {
       return;
     }
     if (action === "acknowledge-highest-opportunity") {
-      if (state.activeCampaign?.status === "active") {
+      if (state.activeCampaign) {
         setActivePage("today");
         return;
       }
@@ -5434,7 +5544,7 @@ function handleDemoAction(action, button) {
       return;
     }
     if (action === "use-marketing-area") {
-      if (state.activeCampaign?.status === "active") {
+      if (state.activeCampaign) {
         setActivePage("today");
         return;
       }
@@ -5451,7 +5561,7 @@ function handleDemoAction(action, button) {
     }
     if (action === "approve-marketing-plan") {
       const plan = state.marketingPlan;
-      if (!plan || plan.status !== "draft" || state.activeCampaign?.status === "active") {
+      if (!plan || plan.status !== "draft" || state.activeCampaign) {
         setActivePage("today");
         return;
       }
@@ -5494,6 +5604,14 @@ function handleDemoAction(action, button) {
       state.activeCampaign = campaign;
       saveDemoState();
       setActivePage("campaigns", false);
+      return;
+    }
+    if (action === "show-campaign-results-form") {
+      if (state.activeCampaign?.status === "completed" && !state.activeCampaign.result) {
+        navigateWithContext("campaigns", { action: "add-results" });
+      } else {
+        setActivePage("campaigns");
+      }
       return;
     }
     if (action === "return-to-today") {
