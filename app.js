@@ -1154,6 +1154,18 @@ function saveBusinessIntelligenceInput(control) {
   }
 }
 
+function refreshLiveBrainFromProfile(state = stableState()) {
+  const brainRun = runSoloBrainOrchestrator({
+    businessIntelligenceProfile: state.businessIntelligenceProfile,
+    targetPhase: "decision",
+  });
+  state.businessDiagnosis = brainRun.businessDiagnosis;
+  state.rankedEvidence = brainRun.rankedEvidence;
+  state.bestNextMove = brainRun.bestNextMove;
+  state.brainOrchestration = brainRun.orchestration;
+  return state;
+}
+
 document.addEventListener("input", (event) => {
   const control = event.target.closest?.("[data-bi-field]");
   if (control) saveBusinessIntelligenceInput(control);
@@ -2360,7 +2372,7 @@ function renderRealCampaignExecutionPage() {
   const state = stableState();
   const campaign = ensureActiveCampaignExecution(state.activeCampaign);
   if (!campaign) {
-    renderRealEmptyPage("Campaigns", "No active campaign yet.", "Approve one Marketing Plan before starting execution.");
+    renderRealEmptyPage("Campaigns", "No active campaign yet.", "Choose a marketing area and approve its plan. Harvest will guide the work here, one step at a time.");
     return;
   }
   state.activeCampaign = campaign;
@@ -5579,6 +5591,14 @@ function handleDemoAction(action, button) {
       setActivePage("highest-opportunity");
       return;
     }
+    if (action === "view-harvest-analysis") {
+      renderHarvestAnalysisValidationPrototype();
+      return;
+    }
+    if (action === "close-harvest-analysis") {
+      renderRealTodayPage();
+      return;
+    }
     if (action === "acknowledge-highest-opportunity") {
       if (state.activeCampaign) {
         setActivePage("today");
@@ -6791,6 +6811,31 @@ function runBusinessUnderstandingEngine(profileInput = defaultBusinessIntelligen
       reason: "Confidence is based on profile completeness and the strength of documented reputation, marketing and operating signals.",
     },
     data_quality: dataQuality,
+    profile_signals: {
+      industry: profile.identity?.industry || profile.identity?.businessCategory || "",
+      business_type: profile.identity?.businessCategory || profile.identity?.industry || "",
+      city: profile.identity?.city || "",
+      primary_goal: profile.goals?.primaryGoal || "",
+      target_audience: profile.customers?.targetAudience || "",
+      reviews: biKnown(profile.performance?.reviews) ? Number(profile.performance.reviews) : null,
+      average_rating: biKnown(profile.performance?.averageRating) ? Number(profile.performance.averageRating) : null,
+      returning_customer_percentage: profile.customers?.returningCustomerPercentage || "",
+      weekly_customers: profile.performance?.weeklyCustomers || "",
+      average_order_value: profile.performance?.averageOrderValue || profile.products?.averageOrderValue || "",
+      posting_frequency: profile.marketing?.postingFrequency || "",
+      active_social_channels: [profile.marketing?.instagram, profile.marketing?.facebook, profile.marketing?.tiktok].filter(biKnown).length,
+      google_profile_active: biIncludes(profile, ["marketing.googleBusinessProfile"], ["active", "yes"]),
+      whatsapp_available: biIncludes(profile, ["marketing.whatsapp"], ["available", "yes"]),
+      marketing_budget_known: biKnown(profile.resources?.monthlyMarketingBudget) || biKnown(profile.resources?.advertisingBudget),
+      retention_known: biKnown(profile.customers?.returningCustomerPercentage),
+    },
+    uncertainties: [
+      !biKnown(profile.performance?.reviews) ? "Review volume is not available." : "",
+      !biKnown(profile.performance?.averageRating) ? "Customer rating is not available." : "",
+      !biKnown(profile.customers?.returningCustomerPercentage) ? "Customer retention cannot be evaluated because repeat customer data is unavailable." : "",
+      !biKnown(profile.resources?.monthlyMarketingBudget) && !biKnown(profile.resources?.advertisingBudget) ? "Marketing budget is not available." : "",
+      !biKnown(profile.performance?.weeklyCustomers) ? "Customer volume is not available." : "",
+    ].filter(Boolean),
   };
 }
 
@@ -6860,6 +6905,166 @@ function evidenceKnowledgeLibraries() {
         benchmarks: ["Average order value"],
         expectedImpact: "Higher basket size and easier group decisions.",
         reason: "Strong fit when families and weekend demand are visible in the diagnosis.",
+      },
+      {
+        id: "evidence-campaign-restaurant-weekday-occupancy",
+        name: "Weekday Occupancy Offer",
+        industry: ["Restaurant", "Cafe", "Food & Beverage"],
+        goals: ["More Customers", "More Revenue", "More Orders"],
+        problems: ["weekday", "weekday occupancy", "quiet days", "demand imbalance"],
+        audience: ["Professionals", "Students", "Local customers"],
+        budget: ["Low", "Medium"],
+        seasons: ["Always"],
+        platforms: ["Instagram", "WhatsApp", "Google"],
+        resources: ["Staff", "Menu", "Photos"],
+        psychology: ["Convenience", "Urgency"],
+        benchmarks: ["Weekday occupancy"],
+        expectedImpact: "Increase customer visits on the restaurant's weakest weekdays.",
+        reason: "Fits restaurants with a documented weekday demand gap and a customer growth goal.",
+      },
+      {
+        id: "evidence-campaign-gym-trial-conversion",
+        name: "Gym Trial Conversion System",
+        industry: ["Gym", "Fitness"],
+        goals: ["More Customers", "More Revenue", "More Memberships"],
+        problems: ["trial", "conversion", "lead", "membership"],
+        audience: ["Adults", "Professionals", "Students"],
+        budget: ["Low", "Medium"],
+        seasons: ["Always", "Summer", "New Year"],
+        platforms: ["Instagram", "WhatsApp", "Google"],
+        resources: ["Staff", "WhatsApp", "10 minutes"],
+        psychology: ["Trust", "Commitment", "Community"],
+        benchmarks: ["Trial conversion"],
+        expectedImpact: "Convert more enquiries and trial visits into memberships.",
+        reason: "Fits gyms focused on customer growth where the trial-to-membership path needs structure.",
+      },
+      {
+        id: "evidence-campaign-gym-retention",
+        name: "Member Retention Check-In",
+        industry: ["Gym", "Fitness"],
+        goals: ["More Repeat Customers", "More Revenue", "Retention"],
+        problems: ["retention", "returning customer", "membership", "churn"],
+        audience: ["Members", "Adults", "Professionals"],
+        budget: ["Low"],
+        seasons: ["Always"],
+        platforms: ["WhatsApp", "Email"],
+        resources: ["Staff", "WhatsApp", "10 minutes"],
+        psychology: ["Community", "Commitment"],
+        benchmarks: ["Customer retention"],
+        expectedImpact: "Improve member attendance and reduce avoidable cancellations.",
+        reason: "Fits gyms when retention is a stated goal or member retention data is incomplete.",
+      },
+      {
+        id: "evidence-campaign-gym-referral",
+        name: "Member Referral Program",
+        industry: ["Gym", "Fitness"],
+        goals: ["More Customers", "More Brand Awareness", "More Revenue"],
+        problems: ["referral", "awareness", "customer acquisition"],
+        audience: ["Members", "Adults", "Professionals"],
+        budget: ["Low", "Medium"],
+        seasons: ["Always"],
+        platforms: ["Instagram", "WhatsApp"],
+        resources: ["Staff", "Members"],
+        psychology: ["Community", "Social Proof"],
+        benchmarks: ["Referral conversion"],
+        expectedImpact: "Generate qualified membership enquiries from existing members.",
+        reason: "Fits gyms with an engaged member base and a customer acquisition goal.",
+      },
+      {
+        id: "evidence-campaign-dentist-reviews",
+        name: "Dental Patient Review System",
+        industry: ["Dentist", "Dental Clinic"],
+        goals: ["More Reviews", "More Customers", "More Appointments"],
+        problems: ["review", "trust", "social proof", "local visibility"],
+        audience: ["Patients", "Families", "Adults"],
+        budget: ["Low"],
+        seasons: ["Always"],
+        platforms: ["Google", "WhatsApp"],
+        resources: ["Staff", "QR", "5 minutes"],
+        psychology: ["Trust", "Authority", "Social Proof"],
+        benchmarks: ["Google reviews"],
+        expectedImpact: "Increase visible patient trust and local appointment intent.",
+        reason: "Fits dental practices where patient trust is strong but public proof is limited.",
+      },
+      {
+        id: "evidence-campaign-dentist-reminders",
+        name: "Appointment Reminder System",
+        industry: ["Dentist", "Dental Clinic"],
+        goals: ["More Appointments", "More Revenue", "More Repeat Customers"],
+        problems: ["appointment", "reminder", "no-show", "retention"],
+        audience: ["Patients", "Families", "Adults"],
+        budget: ["Low"],
+        seasons: ["Always"],
+        platforms: ["WhatsApp", "SMS"],
+        resources: ["Staff", "WhatsApp", "10 minutes"],
+        psychology: ["Convenience", "Commitment", "Trust"],
+        benchmarks: ["Appointment attendance"],
+        expectedImpact: "Reduce missed appointments and improve schedule reliability.",
+        reason: "Fits clinics prioritizing appointments, repeat care, or operating consistency.",
+      },
+      {
+        id: "evidence-campaign-dentist-local-seo",
+        name: "Dental Local Search Foundation",
+        industry: ["Dentist", "Dental Clinic"],
+        goals: ["More Customers", "More Brand Awareness", "More Appointments"],
+        problems: ["local seo", "visibility", "local awareness", "discovery"],
+        audience: ["Patients", "Families", "Local customers"],
+        budget: ["Low", "Medium"],
+        seasons: ["Always"],
+        platforms: ["Google", "Website"],
+        resources: ["Google", "Staff"],
+        psychology: ["Authority", "Trust"],
+        benchmarks: ["Local search visibility"],
+        expectedImpact: "Improve discovery by nearby patients searching for dental care.",
+        reason: "Fits dental practices seeking local patient acquisition or stronger search visibility.",
+      },
+      {
+        id: "evidence-campaign-fashion-repeat-customers",
+        name: "Fashion Customer Return Loop",
+        industry: ["Clothing Store", "Fashion Retail", "Retail"],
+        goals: ["More Repeat Customers", "More Revenue"],
+        problems: ["retention", "returning customer", "repeat purchase", "customer ownership"],
+        audience: ["Shoppers", "Women", "Young Adults"],
+        budget: ["Low"],
+        seasons: ["Always", "Summer", "Ramadan"],
+        platforms: ["WhatsApp", "Instagram"],
+        resources: ["Customer list", "WhatsApp", "10 minutes"],
+        psychology: ["Community", "Reciprocity"],
+        benchmarks: ["Customer retention"],
+        expectedImpact: "Increase repeat purchases from existing customers.",
+        reason: "Fits clothing stores focused on retention or lacking repeat purchase visibility.",
+      },
+      {
+        id: "evidence-campaign-fashion-instagram",
+        name: "New Arrivals Instagram Series",
+        industry: ["Clothing Store", "Fashion Retail", "Retail"],
+        goals: ["More Brand Awareness", "More Customers", "More Revenue"],
+        problems: ["instagram", "content", "visibility", "awareness"],
+        audience: ["Shoppers", "Women", "Young Adults"],
+        budget: ["Low", "Medium"],
+        seasons: ["Always", "Summer", "Ramadan"],
+        platforms: ["Instagram", "TikTok"],
+        resources: ["Photos", "Video", "Products"],
+        psychology: ["Curiosity", "Scarcity", "Social Proof"],
+        benchmarks: ["Posting frequency", "Engagement"],
+        expectedImpact: "Increase product discovery and visits for new arrivals.",
+        reason: "Fits visual retail businesses with an awareness goal or low social activity.",
+      },
+      {
+        id: "evidence-campaign-fashion-basket",
+        name: "Complete-the-Look Upsell",
+        industry: ["Clothing Store", "Fashion Retail", "Retail"],
+        goals: ["More Revenue", "More Orders"],
+        problems: ["average order value", "basket", "upsell", "margin"],
+        audience: ["Shoppers", "Customers"],
+        budget: ["Low"],
+        seasons: ["Always"],
+        platforms: ["Store", "Instagram"],
+        resources: ["Staff", "Products", "Photos"],
+        psychology: ["Convenience", "Authority"],
+        benchmarks: ["Average order value"],
+        expectedImpact: "Increase average basket value through relevant product combinations.",
+        reason: "Fits clothing stores prioritizing revenue where product and basket data are available.",
       },
     ],
     offers: [
@@ -7193,6 +7398,36 @@ function evidenceMatchAny(source, candidates = []) {
   return candidates.some((candidate) => sourceText.includes(String(candidate).toLowerCase()));
 }
 
+function evidenceGoalMatches(goal, candidates = []) {
+  const text = biText(goal);
+  const expanded = [
+    text,
+    /sales|revenue/.test(text) ? "more revenue more orders" : "",
+    /customer|member|patient/.test(text) && !/back|repeat|retention/.test(text) ? "more customers more memberships more appointments" : "",
+    /back|repeat|retention/.test(text) ? "more repeat customers retention" : "",
+    /booking|appointment|reservation/.test(text) ? "more bookings more appointments more reservations" : "",
+    /reputation|review|trust/.test(text) ? "more reviews more brand awareness" : "",
+    /visible|visibility|awareness/.test(text) ? "more brand awareness more customers" : "",
+    /weekday/.test(text) ? "more orders more revenue more customers" : "",
+  ].filter(Boolean).join(" ");
+  return evidenceMatchAny(expanded, candidates);
+}
+
+function normalizedIndustryFamily(value) {
+  const text = biText(value);
+  if (/restaurant|cafe|food|pizza|bakery|hospitality/.test(text)) return "restaurant";
+  if (/gym|fitness|studio|health club|crossfit/.test(text)) return "gym";
+  if (/dentist|dental|orthodont|clinic/.test(text)) return "dentist";
+  if (/clothing|fashion|apparel|boutique|retail|store|shop/.test(text)) return "clothing";
+  return text.trim();
+}
+
+function evidenceIndustryMatches(item, context = {}) {
+  if (!Array.isArray(item.industry) || !item.industry.length || item.industry.includes("General")) return true;
+  const businessFamily = normalizedIndustryFamily([context.industry, context.business_type].filter(Boolean).join(" "));
+  return item.industry.some((industry) => normalizedIndustryFamily(industry) === businessFamily);
+}
+
 function evidenceContextText(input) {
   return [
     input.business_health?.status,
@@ -7223,24 +7458,27 @@ function scoreEvidenceItem(item, input) {
   const diagnosisText = evidenceContextText(input);
   const itemText = JSON.stringify(item);
   const textTokens = evidenceTokens(diagnosisText);
-  const sharedTokenScore = Math.min(textTokens.filter((token) => biText(itemText).includes(token)).length, 8) * 2;
+  const sharedTokenScore = Math.min(textTokens.filter((token) => biText(itemText).includes(token)).length, 5);
 
+  const industryMatch = evidenceIndustryMatches(item, context);
   const dimensions = [
-    ["goal_match", 15, evidenceMatchAny(context.primary_goal, item.goals) || evidenceMatchAny(context.secondary_goal, item.goals)],
-    ["problem_match", 18, evidenceMatchAny(diagnosisText, item.problems)],
-    ["audience_match", 10, evidenceMatchAny(context.target_audience, item.audience)],
-    ["budget_match", 8, evidenceMatchAny(context.budget, item.budget) || !item.budget],
-    ["season_match", 8, evidenceMatchAny(context.season, item.seasons) || evidenceMatchAny(diagnosisText, item.seasons) || item.seasons?.includes("Always")],
-    ["platform_match", 10, evidenceMatchAny(context.available_platforms, item.platforms)],
-    ["resource_match", 8, evidenceMatchAny(context.resources, item.resources)],
-    ["psychology_match", 8, evidenceMatchAny(diagnosisText, item.psychology)],
-    ["benchmark_match", 8, evidenceMatchAny(diagnosisText, item.benchmarks) || evidenceMatchAny(item.name, ["benchmark"])],
-    ["expected_impact", 7, biKnown(item.expectedImpact)],
+    ["industry_match", 25, industryMatch],
+    ["goal_match", 22, evidenceGoalMatches(context.primary_goal, item.goals) || evidenceGoalMatches(context.secondary_goal, item.goals)],
+    ["problem_match", 22, evidenceMatchAny(diagnosisText, item.problems)],
+    ["audience_match", 6, evidenceMatchAny(context.target_audience, item.audience)],
+    ["budget_match", 3, evidenceMatchAny(context.budget, item.budget) || !item.budget],
+    ["season_match", 3, evidenceMatchAny(context.season, item.seasons) || evidenceMatchAny(diagnosisText, item.seasons) || item.seasons?.includes("Always")],
+    ["platform_match", 6, evidenceMatchAny(context.available_platforms, item.platforms)],
+    ["resource_match", 5, evidenceMatchAny(context.resources, item.resources)],
+    ["psychology_match", 3, evidenceMatchAny(diagnosisText, item.psychology)],
+    ["benchmark_match", 3, evidenceMatchAny(diagnosisText, item.benchmarks) || evidenceMatchAny(item.name, ["benchmark"])],
+    ["expected_impact", 2, biKnown(item.expectedImpact)],
   ];
 
   const dimensionScores = Object.fromEntries(dimensions.map(([name, points, passed]) => [name, passed ? points : 0]));
   const baseScore = Object.values(dimensionScores).reduce((sum, value) => sum + value, 0);
-  const matchingScore = Math.min(100, Math.round(baseScore + sharedTokenScore));
+  const industryPenalty = industryMatch ? 0 : 55;
+  const matchingScore = Math.max(0, Math.min(100, Math.round(baseScore + sharedTokenScore - industryPenalty)));
   const strongestDimensions = dimensions
     .filter(([name]) => dimensionScores[name] > 0)
     .map(([name]) => name.replaceAll("_", " "));
@@ -7272,6 +7510,12 @@ function runEvidenceMatchingEngine(businessDiagnosis = {}) {
     version: "1.0",
     source: "business_diagnosis",
     generated_at: new Date().toISOString(),
+    recommendation_context: {
+      ...(input.profile_signals || {}),
+      industry: input.matching_context?.industry || input.profile_signals?.industry || "",
+      business_type: input.matching_context?.business_type || input.profile_signals?.business_type || "",
+      primary_goal: input.matching_context?.primary_goal || input.profile_signals?.primary_goal || "",
+    },
     diagnosis_summary: {
       business_health: input.business_health?.status || "",
       marketing_maturity: input.marketing_maturity?.status || "",
@@ -7719,14 +7963,76 @@ function decisionExpectedImpact(candidate = {}) {
   return candidate.expected_impact || "Improve the diagnosed business bottleneck.";
 }
 
-function decisionWhyBullets(candidate, diagnosis, evidence) {
-  const bullets = [
-    diagnosis.highest_priority_problem?.label ? `${diagnosis.highest_priority_problem.label} is the clearest bottleneck.` : "",
-    evidence.top_matching_benchmarks?.[0]?.title ? `${evidence.top_matching_benchmarks[0].title} supports this direction.` : "",
-    candidate.strongest_dimensions?.length ? `It matches ${candidate.strongest_dimensions.slice(0, 3).join(", ")}.` : "",
-    candidate.reason || "",
-  ].filter(Boolean);
-  return [...new Set(bullets)].slice(0, 4);
+function decisionEvidenceRequirements(candidate = {}) {
+  const text = biText([candidate.title, candidate.reason, candidate.expected_impact].join(" "));
+  if (/review|social proof/.test(text)) return ["reviews", "average_rating", "google_profile_active"];
+  if (/appointment|reminder|no-show/.test(text)) return ["whatsapp_available", "weekly_customers", "retention_known"];
+  if (/trial|conversion|referral/.test(text)) return ["weekly_customers", "active_social_channels", "target_audience"];
+  if (/retention|return|member|loyal|repeat/.test(text)) return ["retention_known", "whatsapp_available", "weekly_customers"];
+  if (/instagram|content|reel|visibility/.test(text)) return ["active_social_channels", "posting_frequency", "target_audience"];
+  if (/local search|local seo|local awareness/.test(text)) return ["city", "google_profile_active", "reviews"];
+  if (/basket|upsell|menu|order value/.test(text)) return ["average_order_value", "target_audience", "primary_goal"];
+  return ["industry", "primary_goal", "target_audience"];
+}
+
+function decisionEvidenceCompleteness(candidate, diagnosis, evidence) {
+  const signals = { ...(diagnosis.profile_signals || {}), ...(evidence.recommendation_context || {}) };
+  const labels = {
+    reviews: "review volume", average_rating: "customer rating", google_profile_active: "Google Business Profile status",
+    retention_known: "repeat customer data", whatsapp_available: "customer contact channel", weekly_customers: "customer volume",
+    active_social_channels: "active social channels", target_audience: "target audience", posting_frequency: "posting frequency",
+    city: "business location", average_order_value: "average order value", primary_goal: "primary goal", industry: "industry",
+  };
+  const requirements = decisionEvidenceRequirements(candidate);
+  const isAvailable = (key) => {
+    if (key === "active_social_channels") return Number(signals[key] || 0) > 0;
+    if (typeof signals[key] === "boolean") return signals[key];
+    return biKnown(signals[key]);
+  };
+  const available = requirements.filter(isAvailable);
+  const missing = requirements.filter((key) => !isAvailable(key)).map((key) => labels[key] || key);
+  return { score: Math.round((available.length / requirements.length) * 100), available, missing };
+}
+
+function decisionWhyBullets(candidate, diagnosis, evidence, completeness = null) {
+  const signals = { ...(diagnosis.profile_signals || {}), ...(evidence.recommendation_context || {}) };
+  const text = biText([candidate.title, candidate.reason, candidate.expected_impact].join(" "));
+  const bullets = [];
+  if (biKnown(signals.industry) && biKnown(signals.primary_goal)) {
+    bullets.push(`The business is a ${signals.industry} with a primary goal of ${signals.primary_goal}.`);
+  }
+  if (/review|social proof/.test(text)) {
+    if (biKnown(signals.average_rating) && biKnown(signals.reviews)) bullets.push(`The recorded rating is ${signals.average_rating}★ across ${signals.reviews} reviews.`);
+    else bullets.push("Review quality or volume is missing, so the size of the trust gap remains uncertain.");
+  } else if (/appointment|reminder|no-show/.test(text)) {
+    bullets.push(signals.whatsapp_available
+      ? "WhatsApp is available for direct appointment follow-up."
+      : "No direct customer messaging channel is recorded.");
+  } else if (/trial|conversion|referral/.test(text)) {
+    bullets.push(biKnown(signals.weekly_customers)
+      ? `${signals.weekly_customers} weekly customers are recorded as the current acquisition baseline.`
+      : "Customer volume is unavailable, so the conversion baseline remains uncertain.");
+  } else if (/retention|return|member|loyal|repeat/.test(text)) {
+    bullets.push(signals.retention_known
+      ? `The recorded repeat customer rate is ${signals.returning_customer_percentage}.`
+      : "Customer retention cannot be evaluated because repeat customer data is unavailable.");
+  } else if (/instagram|content|reel|visibility/.test(text)) {
+    bullets.push(Number(signals.active_social_channels || 0) > 0
+      ? `${signals.active_social_channels} active social channel(s) are recorded${biKnown(signals.posting_frequency) ? ` with ${signals.posting_frequency}` : ""}.`
+      : "No active social channel is recorded, so current social visibility is limited.");
+  } else if (/local search|local seo|local awareness/.test(text)) {
+    bullets.push(`${signals.google_profile_active ? "An active" : "No active"} Google Business Profile is recorded${biKnown(signals.city) ? ` in ${signals.city}` : ""}.`);
+  } else if (/basket|upsell|menu|order value/.test(text)) {
+    bullets.push(biKnown(signals.average_order_value)
+      ? `The recorded average order value is ${signals.average_order_value}.`
+      : "Average order value is unavailable, so the revenue baseline remains uncertain.");
+  }
+  if (diagnosis.highest_priority_problem?.evidence && !/incomplete|unknown|missing/i.test(diagnosis.highest_priority_problem.evidence)) {
+    bullets.push(diagnosis.highest_priority_problem.evidence);
+  }
+  if (candidate.strongest_dimensions?.length) bullets.push(`It ranked first on ${candidate.strongest_dimensions.slice(0, 3).join(", ")}.`);
+  if (completeness?.missing?.length) bullets.push(`Confidence is limited by missing ${completeness.missing.join(", ")}.`);
+  return [...new Set(bullets.filter(Boolean))].slice(0, 5);
 }
 
 function decisionCandidateScore(candidate, diagnosis, evidence) {
@@ -7781,11 +8087,14 @@ function runDecisionEngine(businessDiagnosis = {}, rankedEvidence = {}) {
     campaign_name: candidate.title,
     reason: candidate.reason,
     confidence: `${Math.max(45, Math.min(95, candidate.decision_score))}%`,
+    expected_impact: decisionExpectedImpact(candidate),
+    effort: candidate.effort,
   }));
-  const confidenceScore = Math.max(45, Math.min(95, Math.round(
-    selected.decision_score * 0.72 +
-    Number(businessDiagnosis.confidence?.score || 60) * 0.18 +
-    Number(businessDiagnosis.data_quality?.score || 50) * 0.1
+  const evidenceCompleteness = decisionEvidenceCompleteness(selected, businessDiagnosis, rankedEvidence);
+  const confidenceScore = Math.max(35, Math.min(95, Math.round(
+    selected.decision_score * 0.45 +
+    Number(businessDiagnosis.confidence?.score || 45) * 0.25 +
+    evidenceCompleteness.score * 0.3
   )));
 
   return {
@@ -7794,7 +8103,7 @@ function runDecisionEngine(businessDiagnosis = {}, rankedEvidence = {}) {
     source: "business_diagnosis_and_ranked_evidence",
     generated_at: new Date().toISOString(),
     campaign_name: selected.title,
-    why: decisionWhyBullets(selected, businessDiagnosis, rankedEvidence),
+    why: decisionWhyBullets(selected, businessDiagnosis, rankedEvidence, evidenceCompleteness),
     expected_impact: decisionExpectedImpact(selected),
     confidence: `${confidenceScore}%`,
     confidence_score: confidenceScore,
@@ -7803,6 +8112,9 @@ function runDecisionEngine(businessDiagnosis = {}, rankedEvidence = {}) {
     estimated_cost: selected.estimated_cost,
     success_metrics: selected.success_metrics,
     alternative_options: alternatives,
+    uncertainty: evidenceCompleteness.missing.length
+      ? `Confidence is limited because ${evidenceCompleteness.missing.join(", ")} ${evidenceCompleteness.missing.length === 1 ? "is" : "are"} unavailable.`
+      : "The key evidence required for this recommendation is available.",
     evidence_used: {
       selected_evidence_id: selected.id || "",
       selected_evidence_type: selected.source_type || "",
@@ -9122,7 +9434,7 @@ function renderRealEmptyPage(label, title, message) {
         <p>${studioEscape(message)}</p>
       </header>
       <section class="guided-empty-state">
-        <strong>${ownerProfileValue(profile.identity?.businessName)}</strong>
+        <strong>What happens next</strong>
         <p>${studioEscape(message)}</p>
       </section>
     </div>
@@ -9177,11 +9489,11 @@ function renderWelcomePage() {
       <header class="growth-os-header">
         <p class="section-label">Your marketing partner</p>
         <h2>Welcome${ownerName ? `, ${studioEscape(ownerName)}` : ""}.</h2>
-        <p>I’m Harvest. I’ll learn enough about your business to identify the opportunity I would prioritize first.</p>
+        <p>I’m Harvest. I’ll learn about your business and identify the opportunity worth addressing first.</p>
       </header>
       <section class="guided-empty-state">
         <strong>You will always remain in control.</strong>
-        <p>I’ll explain my professional priority and show you other marketing areas you can freely explore.</p>
+        <p>I’ll explain my recommendation and show you other areas you can explore.</p>
         <button type="button" data-demo-action="begin-owner-onboarding">Tell Harvest about my business</button>
       </section>
     </div>
@@ -9261,8 +9573,8 @@ function renderHarvestAnalysisPage() {
     <div class="growth-os-page">
       <header class="growth-os-header">
         <p class="section-label">Harvest Analysis</p>
-        <h2>I understand enough about your business to begin helping you.</h2>
-        <p>Here is my first reading of ${studioEscape(profile.identity?.businessName || "your business")}. You can improve it later as I learn more.</p>
+        <h2>I understand your business well enough to help.</h2>
+        <p>Here’s my first reading of ${studioEscape(profile.identity?.businessName || "your business")}. You can refine it as Harvest learns more.</p>
       </header>
       <section class="business-health-card business-health-card--compact">
         <div class="health-status-copy"><span>YOUR CURRENT GOAL</span><p>${ownerProfileValue(profile.goals?.primaryGoal)}</p></div>
@@ -9418,6 +9730,149 @@ function highestOpportunityKnownFacts(profile) {
   return candidates.filter(([, value]) => biKnown(value)).slice(0, 6).map(([label, value]) => `${label}: ${value}`);
 }
 
+/*
+ * Validation prototype adapter.
+ * Read-only by design: it formats existing Brain outputs without recalculating,
+ * persisting, ranking, or changing the owner journey.
+ */
+function harvestAnalysisPrototypeFacts(state) {
+  const profile = state.businessIntelligenceProfile || {};
+  const context = state.businessDiagnosis?.matching_context || {};
+  const platforms = [
+    biKnown(profile.marketing?.instagram) ? "Instagram" : "",
+    biKnown(profile.marketing?.tiktok) ? "TikTok" : "",
+    biIncludes(profile, ["marketing.whatsapp"], ["available", "yes"]) ? "WhatsApp" : "",
+    biIncludes(profile, ["marketing.googleBusinessProfile"], ["active", "yes"]) ? "Google" : "",
+  ].filter(Boolean);
+  const resources = [
+    biIncludes(profile, ["resources.canCreatePhotos"], ["yes", "sometimes"]) ? "Photos" : "",
+    biIncludes(profile, ["resources.canCreateVideos"], ["yes", "sometimes"]) ? "Video" : "",
+    biIncludes(profile, ["resources.staffAvailable"], ["yes", "sometimes"]) ? "Staff" : "",
+    profile.resources?.availableTime || "",
+  ].filter(Boolean);
+  const facts = [
+    ["Primary goal", context.primary_goal || profile.goals?.primaryGoal],
+    ["Business type", context.business_type || context.industry || profile.identity?.businessCategory || profile.identity?.industry],
+    ["Target audience", context.target_audience || profile.customers?.targetAudience],
+    ["Google reviews", profile.performance?.reviews],
+    ["Rating", biKnown(profile.performance?.averageRating) ? `${profile.performance.averageRating}★` : ""],
+    ["Posting frequency", profile.marketing?.postingFrequency],
+    ["Available platforms", Array.isArray(context.available_platforms) ? context.available_platforms.join(", ") : context.available_platforms || platforms.join(", ")],
+    ["Available resources", Array.isArray(context.resources) ? context.resources.join(", ") : context.resources || resources.join(", ")],
+    ["Business constraints", context.business_constraints || profile.context?.constraints],
+    ["Positioning", context.positioning || profile.competition?.biggestCompetitiveAdvantage],
+  ];
+  return facts.filter(([, value]) => biKnown(value)).slice(0, 8);
+}
+
+function harvestAnalysisPrototypeConclusions(diagnosis = {}) {
+  return [
+    diagnosis.biggest_strength,
+    diagnosis.biggest_weakness,
+    diagnosis.biggest_opportunity,
+    diagnosis.highest_priority_problem,
+  ].filter((item) => biKnown(item?.evidence))
+    .map((item) => `${item.label}: ${item.evidence}`)
+    .filter((value, index, values) => values.indexOf(value) === index)
+    .slice(0, 4);
+}
+
+function harvestAnalysisPrototypeMissingData(diagnosis = {}) {
+  const labels = {
+    "goals.currentBiggestChallenge": "Current business challenge",
+    "goals.successMetric": "Success measure",
+    "customers.buyingMotivations": "Customer buying motivations",
+    "customers.returningCustomerPercentage": "Repeat customer rate",
+    "resources.monthlyMarketingBudget": "Marketing budget",
+    "resources.advertisingBudget": "Advertising budget",
+    "performance.weeklyCustomers": "Weekly customer volume",
+    "competition.mainCompetitors": "Main local competitors",
+    "marketing.currentContentTypes": "Current content activity",
+  };
+  const missing = diagnosis.data_quality?.missing_fields || diagnosis.data_quality?.missing || [];
+  return missing.map((field) => labels[field] || String(field).split(".").pop().replaceAll(/([A-Z])/g, " $1").replaceAll("_", " ")).filter(Boolean).slice(0, 6);
+}
+
+function harvestAnalysisPrototypeComparison(state) {
+  const decision = state.bestNextMove || {};
+  const evidence = collectDecisionCandidates(state.rankedEvidence || {});
+  const ranked = [
+    { name: decision.campaign_name, confidence: decision.confidence, ease: decision.effort },
+    ...(decision.alternative_options || []).map((item) => ({ name: item.campaign_name, confidence: item.confidence, ease: item.effort || "Not available", impact: item.expected_impact })),
+  ].filter((item) => biKnown(item.name)).slice(0, 3);
+  return ranked.map((item) => {
+    const match = evidence.find((candidate) => candidate.title === item.name) || {};
+    return { ...item, impact: item.impact || match.expected_impact || (item.name === decision.campaign_name ? decision.expected_impact : "Not available") };
+  });
+}
+
+function harvestAnalysisPrototypeWhy(state) {
+  const decision = state.bestNextMove || {};
+  const diagnosis = state.businessDiagnosis || {};
+  const reasons = [
+    ...(decision.why || []),
+    diagnosis.highest_priority_problem?.label ? `Priority issue: ${diagnosis.highest_priority_problem.label}.` : "",
+    decision.evidence_used?.strongest_dimensions?.length ? `Strongest matches: ${decision.evidence_used.strongest_dimensions.slice(0, 3).join(", ")}.` : "",
+  ].filter(biKnown);
+  return reasons.filter((value, index, values) => values.indexOf(value) === index).slice(0, 5);
+}
+
+function renderHarvestAnalysisValidationPrototype() {
+  const state = refreshLiveBrainFromProfile(stableState());
+  const decision = state.bestNextMove || {};
+  const facts = harvestAnalysisPrototypeFacts(state);
+  const conclusions = harvestAnalysisPrototypeConclusions(state.businessDiagnosis || {});
+  const missing = harvestAnalysisPrototypeMissingData(state.businessDiagnosis || {});
+  const comparison = harvestAnalysisPrototypeComparison(state);
+  const reasons = harvestAnalysisPrototypeWhy(state);
+  contentStage.innerHTML = `
+    <div class="growth-os-page harvest-analysis-prototype">
+      <header class="growth-os-header">
+        <p class="section-label">Validation Prototype</p>
+        <h2>Harvest Analysis</h2>
+        <p>Read-only reasoning behind the current recommendation.</p>
+      </header>
+      <section class="harvest-analysis-prototype__section">
+        <h3>1. Facts Used</h3>
+        <div class="harvest-analysis-prototype__content">
+          <strong>Business Data</strong>
+          ${facts.length ? `<ul>${facts.map(([label, value]) => `<li><span>${studioEscape(label)}:</span> ${studioEscape(value)}</li>`).join("")}</ul>` : "<p>No supporting facts are available.</p>"}
+        </div>
+      </section>
+      <section class="harvest-analysis-prototype__section">
+        <h3>2. Harvest Analysis</h3>
+        <div class="harvest-analysis-prototype__content">
+          ${conclusions.length ? `<ul>${conclusions.map((item) => `<li>${studioEscape(item)}</li>`).join("")}</ul>` : "<p>No supported conclusions are available.</p>"}
+        </div>
+      </section>
+      <section class="harvest-analysis-prototype__section">
+        <h3>3. Missing Data</h3>
+        <div class="harvest-analysis-prototype__content">
+          ${missing.length ? `<ul>${missing.map((item) => `<li>${studioEscape(item)}</li>`).join("")}</ul>` : "<p>No priority data gaps were identified.</p>"}
+        </div>
+      </section>
+      <section class="harvest-analysis-prototype__section">
+        <h3>4. Opportunity Comparison</h3>
+        <div class="harvest-analysis-prototype__table-wrap">
+          <table>
+            <thead><tr><th>Opportunity</th><th>Impact</th><th>Confidence</th><th>Ease</th></tr></thead>
+            <tbody>${comparison.map((item) => `<tr><td>${studioEscape(item.name)}</td><td>${studioEscape(item.impact)}</td><td>${studioEscape(item.confidence || "Not available")}</td><td>${studioEscape(item.ease || "Not available")}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </section>
+      <section class="harvest-analysis-prototype__section">
+        <h3>5. Recommendation</h3>
+        <div class="harvest-analysis-prototype__content">
+          <strong>${ownerProfileValue(decision.campaign_name)}</strong>
+          <h4>Why this recommendation?</h4>
+          ${reasons.length ? `<ul>${reasons.map((item) => `<li>${studioEscape(item)}</li>`).join("")}</ul>` : "<p>No supporting rationale is available.</p>"}
+        </div>
+      </section>
+      <button type="button" class="button-secondary" data-demo-action="close-harvest-analysis">Return to Today</button>
+    </div>
+  `;
+}
+
 function friendlyMissingProfileFacts(diagnosis) {
   const labels = {
     "goals.currentBiggestChallenge": "the main business challenge", "goals.successMetric": "how success should be measured",
@@ -9441,10 +9896,10 @@ function renderMarketingOpportunityPage(areaId) {
         <p>${studioEscape(area.description)}</p>
       </header>
       <section class="marketing-area-detail">
-        <div><span>What this area helps improve</span><p>${studioEscape(area.description)} Harvest can help you work on this area. A focused analysis is needed before preparing a plan.</p></div>
+        <div><span>What this area helps improve</span><p>${studioEscape(area.description)} Harvest can help you strengthen this area with a focused plan.</p></div>
         <div><span>Known relevant facts</span>${insight.facts.length ? `<ul>${insight.facts.map((fact) => `<li>${studioEscape(fact)}</li>`).join("")}</ul>` : "<p>No directly relevant information has been provided yet.</p>"}</div>
         <div><span>What Harvest needs to know</span>${insight.missing.length ? `<ul>${insight.missing.map((fact) => `<li>${studioEscape(fact)}</li>`).join("")}</ul>` : "<p>The current profile contains the basic facts needed for a focused analysis.</p>"}</div>
-        <div><span>What comes next</span><p>The next sprint will eventually use a focused analysis to prepare a responsible plan. No plan or campaign is created here.</p></div>
+        <div><span>What comes next</span><p>Choose this area and Harvest will prepare one marketing plan for your review. Nothing starts without your approval.</p></div>
         <div class="marketing-area-actions">
           <button type="button" data-demo-action="use-marketing-area" data-opportunity-area="${studioEscape(areaId)}">Use this area</button>
           <button type="button" class="button-secondary" data-demo-action="open-settings">Add missing information</button>
@@ -9456,7 +9911,7 @@ function renderMarketingOpportunityPage(areaId) {
 }
 
 function renderHighestOpportunityPage() {
-  const state = stableState();
+  const state = refreshLiveBrainFromProfile(stableState());
   const decision = state.bestNextMove || {};
   const profile = state.businessIntelligenceProfile;
   const knownFacts = highestOpportunityKnownFacts(profile);
@@ -9534,13 +9989,23 @@ function renderMarketingPlanReviewPage() {
 }
 
 function renderRealTodayPage() {
-  const state = stableState();
+  const state = refreshLiveBrainFromProfile(stableState());
   const profile = state.businessIntelligenceProfile;
   const journey = state.ownerJourney || defaultOwnerJourney();
 
   const diagnosis = state.businessDiagnosis || {};
   const decision = state.bestNextMove || {};
   const opportunities = marketingOpportunityAreas();
+  const liveRanking = [
+    {
+      campaign_name: decision.campaign_name,
+      expected_impact: decision.expected_impact,
+      confidence: decision.confidence,
+      effort: decision.effort,
+      is_primary: true,
+    },
+    ...(decision.alternative_options || []),
+  ].filter((item) => biKnown(item.campaign_name)).slice(0, 3);
   const selectedArea = opportunities[journey.selectedMarketingArea];
   const marketingPlan = state.marketingPlan?.status === "draft" ? state.marketingPlan : null;
   const activeCampaign = state.activeCampaign?.status === "active" ? state.activeCampaign : null;
@@ -9559,7 +10024,7 @@ function renderRealTodayPage() {
       <section class="business-health-card business-health-card--compact">
         <div class="health-status-copy"><span>CURRENT GOAL</span><p>${ownerProfileValue(profile.goals?.primaryGoal)}</p></div>
         <div class="health-status-copy"><span>MAIN CONSTRAINT</span><p>${ownerProfileValue(diagnosis.highest_priority_problem?.label || diagnosis.biggest_weakness?.label)}</p></div>
-        <div class="health-status-copy"><span>ANALYSIS CONFIDENCE</span><p>${ownerProfileValue(diagnosis.confidence?.level || diagnosis.confidence?.score)}</p></div>
+        <div class="health-status-copy"><span>RECOMMENDATION CONFIDENCE</span><p>${ownerProfileValue(decision.confidence)}</p></div>
       </section>
       <section class="business-opportunity-card">
         <div class="business-opportunity-main"><span>⭐ HIGHEST OPPORTUNITY</span><h3>${ownerProfileValue(decision.campaign_name)}</h3></div>
@@ -9570,15 +10035,21 @@ function renderRealTodayPage() {
         </div>
         <div class="next-action-box"><span>Harvest recommends</span><strong>Explore the reasoning and known facts before choosing.</strong><button type="button" data-demo-action="review-highest-opportunity">Explore this opportunity</button></div>
       </section>
+      <button type="button" class="button-secondary harvest-analysis-prototype__open" data-demo-action="view-harvest-analysis">View Harvest Analysis</button>
       ${selectedArea ? `<section class="selected-marketing-area"><span>Selected Marketing Area</span><strong>You chose to work on ${studioEscape(selectedArea.title)}.</strong></section>` : ""}
       ${marketingPlan ? `<section class="marketing-plan-ready"><div><span>YOUR NEXT STEP</span><strong>Your Marketing Plan is ready.</strong><p>${studioEscape(marketingPlan.title)} has been prepared for review.</p></div><button type="button" data-demo-action="review-marketing-plan">Review plan</button></section>` : ""}
       ${activeCampaign ? `<section class="active-campaign-confirmation"><span>ACTIVE CAMPAIGN</span><strong>Your marketing plan is now active.</strong><p>${studioEscape(activeCampaign.title)}</p><button type="button" data-demo-action="open-campaign-execution">Continue campaign</button></section>` : ""}
       ${businessMemory ? renderOwnerBusinessMemory(businessMemory) : ""}
       <section class="loop-group">
-        <div class="loop-group__heading"><span>Marketing Opportunities</span><strong>Other areas you can explore</strong></div>
-        <p>These are business improvement areas, not recommendations. You decide what is worth exploring.</p>
+        <div class="loop-group__heading"><span>Opportunity Ranking</span><strong>Top 3 from the current Brain analysis</strong></div>
+        <p>Ranked from the business profile currently shown in Settings.</p>
         <div class="marketing-opportunity-grid">
-          ${Object.entries(opportunities).map(([id, area]) => { const insight = marketingAreaInsight(id, profile); return `<article class="marketing-opportunity-card"><div><strong>${studioEscape(area.title)}</strong><span class="marketing-area-status">${studioEscape(insight.status)}</span></div><p>${studioEscape(area.description)}</p><button type="button" class="button-secondary" data-demo-action="explore-marketing-opportunity" data-opportunity-area="${id}">Explore</button></article>`; }).join("")}
+          ${liveRanking.map((item, index) => {
+            const areaId = marketingAreaFromDecision({ campaign_name: item.campaign_name, expected_impact: item.expected_impact });
+            const action = item.is_primary ? "review-highest-opportunity" : "explore-marketing-opportunity";
+            const areaData = item.is_primary ? "" : ` data-opportunity-area="${studioEscape(areaId)}"`;
+            return `<article class="marketing-opportunity-card"><div><strong>${studioEscape(item.campaign_name)}</strong><span class="marketing-area-status">#${index + 1} · ${studioEscape(item.confidence || "Confidence unavailable")}</span></div><p>${studioEscape(item.expected_impact || item.reason || "Impact unavailable")}</p><button type="button" class="button-secondary" data-demo-action="${action}"${areaData}>${item.is_primary ? "View recommendation" : "Explore"}</button></article>`;
+          }).join("")}
         </div>
       </section>
     </div>
@@ -9589,7 +10060,7 @@ function renderRealResultsPage() {
   const state = stableState();
   const results = Array.isArray(state.results) ? state.results : [];
   if (!results.length) {
-    renderRealEmptyPage("Results", "No results recorded yet.", "Results will appear here after a real marketing action is measured.");
+    renderRealEmptyPage("Results", "No results recorded yet.", "Complete a campaign and record its results. Harvest will then summarize what changed.");
     return;
   }
   const totals = performanceResultsFromInput({ results }).totals;
@@ -10017,7 +10488,7 @@ function renderFocusedCustomersPage() {
 
 function renderFocusedStudioPage() {
   if (!isDeveloperDemoMode()) {
-    renderRealEmptyPage("Studio", "No prepared materials yet.", "Your prepared execution materials will appear here after you approve a plan.");
+    renderRealEmptyPage("Studio", "No prepared materials yet.", "Approve a marketing plan first. Any materials your campaign needs will appear here.");
     return;
   }
   const state = stableState();
@@ -10393,7 +10864,7 @@ function renderFocusedSettingsPage() {
 
 function renderFocusedCalendarPage() {
   if (!isDeveloperDemoMode()) {
-    renderRealEmptyPage("Calendar", "No marketing schedule yet.", "Approved marketing plans will appear here when they have a schedule.");
+    renderRealEmptyPage("Calendar", "No marketing schedule yet.", "When a campaign includes dated work, its schedule will appear here.");
     return;
   }
   const state = stableState();

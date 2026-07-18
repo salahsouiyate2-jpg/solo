@@ -4918,6 +4918,226 @@ body[data-page="dashboard"] .main-panel {
   }
 }
 
+/* Harvest Analysis validation prototype — isolated and removable. */
+.harvest-analysis-prototype { max-width: 980px; }
+
+.harvest-analysis-prototype__open { justify-self: start; }
+
+.harvest-analysis-prototype__section {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.32fr) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 52px);
+  padding: 28px 0;
+  border-top: 1px solid var(--solo-border, rgba(17, 24, 39, 0.1));
+}
+
+.harvest-analysis-prototype__section h3,
+.harvest-analysis-prototype__section h4,
+.harvest-analysis-prototype__content strong { margin: 0; color: #111827; }
+
+.harvest-analysis-prototype__section h3 { font-size: 1rem; line-height: 1.45; }
+.harvest-analysis-prototype__section h4 { margin-top: 26px; font-size: 0.9rem; }
+
+.harvest-analysis-prototype__content { min-width: 0; display: grid; gap: 14px; }
+.harvest-analysis-prototype__content ul { display: grid; gap: 10px; margin: 0; padding-left: 20px; }
+.harvest-analysis-prototype__content li { color: #39443d; line-height: 1.55; }
+.harvest-analysis-prototype__content li::marker { color: #065f46; }
+.harvest-analysis-prototype__content li span { color: #111827; font-weight: 700; }
+.harvest-analysis-prototype__content p { margin: 0; color: var(--solo-muted); }
+
+.harvest-analysis-prototype__table-wrap { min-width: 0; overflow-x: auto; }
+.harvest-analysis-prototype table { width: 100%; min-width: 620px; border-collapse: collapse; text-align: left; }
+.harvest-analysis-prototype th,
+.harvest-analysis-prototype td { padding: 14px 16px; border-bottom: 1px solid var(--solo-border, rgba(17, 24, 39, 0.1)); vertical-align: top; }
+.harvest-analysis-prototype th { color: #59635c; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.harvest-analysis-prototype td { color: #111827; font-size: 0.9rem; line-height: 1.5; }
+.harvest-analysis-prototype td:first-child { font-weight: 700; }
+
+@media (max-width: 720px) {
+  .harvest-analysis-prototype__section { grid-template-columns: 1fr; gap: 16px; padding: 24px 0; }
+  .harvest-analysis-prototype__open { width: 100%; justify-content: center; }
+}
+
+/* UX polish — presentation and responsive refinements only */
+:root {
+  --solo-radius-card: 16px;
+  --solo-radius-control: 12px;
+  --solo-border: rgba(17, 24, 39, 0.1);
+  --solo-muted: #59635c;
+  --solo-shadow: 0 4px 20px rgba(16, 24, 40, 0.055);
+}
+
+.growth-os-page,
+.solo-home-page,
+.settings-page,
+.owner-journey-shell {
+  width: min(100%, 1120px);
+  margin-inline: auto;
+}
+
+.growth-os-header,
+.solo-home-heading {
+  margin-bottom: clamp(28px, 4vw, 44px);
+}
+
+.growth-os-header h2,
+.solo-home-heading h2 {
+  max-width: 22ch;
+  margin-top: 8px;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+}
+
+.growth-os-header > p:last-child,
+.solo-home-heading > p,
+.guided-empty-state p,
+.marketing-area-detail p,
+.marketing-opportunity-card p,
+.business-opportunity-card p,
+.owner-business-memory p {
+  color: var(--solo-muted);
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.growth-os-header > p:last-child,
+.solo-home-heading > p { max-width: 68ch; margin-top: 12px; }
+
+.section-label,
+.health-status-copy span,
+.marketing-area-detail > div > span,
+.owner-current-task > span {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  letter-spacing: 0.08em;
+}
+
+small { font-size: 0.78rem; line-height: 1.45; }
+
+button,
+.content-stage button:not(.icon-button) {
+  min-height: 44px;
+  padding-inline: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.icon-button {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+}
+
+.icon-button svg,
+.nav-item svg { width: 20px; height: 20px; }
+
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid rgba(6, 95, 70, 0.3);
+  outline-offset: 3px;
+}
+
+.business-health-card,
+.business-opportunity-card,
+.settings-section,
+.loop-group,
+.guided-empty-state,
+.marketing-area-detail,
+.marketing-opportunity-card,
+.owner-business-memory,
+.owner-result-form,
+.execution-step {
+  border-color: var(--solo-border);
+  border-radius: var(--solo-radius-card);
+  box-shadow: var(--solo-shadow);
+}
+
+.guided-empty-state {
+  display: grid;
+  gap: 10px;
+  padding: clamp(24px, 4vw, 36px);
+}
+
+.guided-empty-state strong { font-size: 1.08rem; line-height: 1.35; }
+.guided-empty-state p { max-width: 62ch; margin: 0; }
+.guided-empty-state button { justify-self: start; margin-top: 8px; }
+
+.marketing-opportunity-grid { align-items: stretch; }
+.marketing-opportunity-card { display: flex; flex-direction: column; gap: 16px; padding: 22px; }
+.marketing-opportunity-card p { flex: 1; margin: 0; }
+.marketing-opportunity-card button { align-self: flex-start; }
+.marketing-area-actions,
+.account-actions { gap: 12px; align-items: center; }
+
+.marketing-area-status,
+.move-badges span,
+.status-pill,
+.badge {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.today-progress-track,
+.progress-track,
+.hero-progress-bar { min-height: 8px; border-radius: 999px; overflow: hidden; }
+.execution-step.is-pending { opacity: 0.76; }
+
+input,
+select,
+textarea {
+  min-height: 46px;
+  padding: 11px 13px;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+textarea { min-height: 118px; resize: vertical; }
+
+@media (max-width: 960px) {
+  .marketing-opportunity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .owner-business-memory__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .sidebar { padding: 18px 14px; gap: 14px; }
+  .sidebar-nav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+  }
+  .sidebar-nav::-webkit-scrollbar { display: none; }
+  .nav-item { flex: 0 0 auto; min-height: 44px; white-space: nowrap; }
+  .growth-os-header,
+  .solo-home-heading { margin-bottom: 26px; }
+  .growth-os-header h2,
+  .solo-home-heading h2 { font-size: clamp(1.85rem, 9vw, 2.45rem); }
+  .marketing-opportunity-grid,
+  .owner-business-memory__facts { grid-template-columns: 1fr; }
+  .marketing-area-actions,
+  .account-actions { align-items: stretch; }
+  .marketing-area-actions button,
+  .account-actions button,
+  .guided-empty-state button { width: 100%; justify-content: center; }
+  .marketing-opportunity-card { padding: 20px; }
+}
+
+@media (max-width: 420px) {
+  .content-stage,
+  body[data-page] .content-stage { padding-inline: 16px; }
+  .topbar { padding-inline: 16px; }
+  .business-health-card,
+  .business-opportunity-card,
+  .settings-section,
+  .loop-group,
+  .owner-business-memory { padding: 18px; }
+}
+
 @media (max-width: 460px) {
   .brand-copy {
     display: none;
@@ -14432,4 +14652,50 @@ body:is([data-page="signup"], [data-page="welcome"], [data-page="onboarding"], [
   .settings-section,
   .loop-group,
   .owner-business-memory { padding: 20px; }
+}
+
+/* Keep UX polish authoritative after the brand layer. */
+:root { --solo-muted: #59635c; }
+
+.execution-step.is-pending { opacity: 0.76; }
+
+@media (max-width: 1100px) and (min-width: 721px) {
+  :root { --sidebar-width: 236px; }
+  body[data-page] .sidebar,
+  .sidebar { width: var(--sidebar-width); padding: 22px 14px; }
+  .main-panel { padding: 24px 18px; }
+  .content-stage,
+  body[data-page] .content-stage { padding: 32px; }
+  .growth-loop { grid-template-columns: minmax(0, 1fr) minmax(160px, 0.75fr); }
+  .growth-loop__facts { grid-column: 1 / -1; }
+  .growth-loop > button { justify-self: start; }
+  .planned-loop-list > div,
+  .relationship-row,
+  .settings-system > div,
+  .campaign-result-line { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .operating-metrics,
+  .operating-changes,
+  .result-summary-line { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .orientation-list button { grid-template-columns: 90px minmax(0, 1fr) 120px; }
+}
+
+@media (max-width: 960px) {
+  .marketing-opportunity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .owner-business-memory__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  body[data-page] .sidebar,
+  .sidebar { padding: 18px 14px; gap: 14px; }
+  .sidebar-nav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+  }
+  .sidebar-nav::-webkit-scrollbar { display: none; }
+  .nav-item { flex: 0 0 auto; min-height: 44px; white-space: nowrap; }
+  .marketing-opportunity-grid,
+  .owner-business-memory__facts { grid-template-columns: 1fr; }
 }
